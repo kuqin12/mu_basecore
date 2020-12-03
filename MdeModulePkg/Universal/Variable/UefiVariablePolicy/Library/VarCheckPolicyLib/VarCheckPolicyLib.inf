@@ -31,7 +31,6 @@
   BaseLib
   DebugLib
   BaseMemoryLib
-  DxeServicesLib
   MemoryAllocationLib
   VarCheckLib
   UefiVariablePolicyLib
