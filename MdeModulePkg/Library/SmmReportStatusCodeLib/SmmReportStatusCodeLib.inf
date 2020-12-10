@@ -17,8 +17,8 @@
   FILE_GUID                      = 67089D19-B3D6-4d9e-A0EB-FEDC1F83A1EE
   MODULE_TYPE                    = DXE_SMM_DRIVER
   VERSION_STRING                 = 1.0
-  PI_SPECIFICATION_VERSION       = 0x0001000A
-  LIBRARY_CLASS                  = ReportStatusCodeLib|DXE_SMM_DRIVER SMM_CORE
+  PI_SPECIFICATION_VERSION       = 0x00010032
+  LIBRARY_CLASS                  = ReportStatusCodeLib|DXE_SMM_DRIVER SMM_CORE MM_STANDALONE
 
 #
 # The following information is for reference only and not required by the build tools.
@@ -36,7 +36,7 @@
 [LibraryClasses]
   PcdLib
   BaseMemoryLib
-  SmmServicesTableLib
+  MmServicesTableLib
   DebugLib
   MemoryAllocationLib
 
@@ -45,7 +45,7 @@
   gEfiStatusCodeDataTypeDebugGuid               ## SOMETIMES_CONSUMES   ## UNDEFINED
 
 [Protocols]
-  gEfiSmmStatusCodeProtocolGuid                 ## CONSUMES
+  gEfiMmStatusCodeProtocolGuid                  ## CONSUMES
 
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdReportStatusCodePropertyMask  ## CONSUMES
