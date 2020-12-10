@@ -25,6 +25,8 @@
 [Sources]
   AcpiTimerLib.c
   DxeAcpiTimerLib.c
+  CommonAcpiTimerLib.c
+  CommonAcpiTimerLib.h
 
 [Packages]
   MdePkg/MdePkg.dec
