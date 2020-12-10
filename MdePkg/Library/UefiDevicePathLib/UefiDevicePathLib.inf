@@ -16,8 +16,9 @@
   MODULE_UNI_FILE                = UefiDevicePathLib.uni
   FILE_GUID                      = 91c1677a-e57f-4191-8b8e-eb7711a716e0
   MODULE_TYPE                    = UEFI_DRIVER
+  PI_SPECIFICATION_VERSION       = 0x00010032
   VERSION_STRING                 = 1.0
-  LIBRARY_CLASS                  = DevicePathLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER SMM_CORE MM_STANDALONE
+  LIBRARY_CLASS                  = DevicePathLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER SMM_CORE MM_STANDALONE MM_CORE_STANDALONE
 
 
 #
@@ -71,4 +72,8 @@
 
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdMaximumDevicePathNodeCount    ## SOMETIMES_CONSUMES
+
+[BuildOptions.common.EDKII.MM_STANDALONE, BuildOptions.common.EDKII.MM_CORE_STANDALONE]
+  #C flag for MM_STANDALONE to remove reference of gBS
+  *_*_*_CC_FLAGS  = /D MM_STANDALONE_BUILD
 

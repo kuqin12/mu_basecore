@@ -825,6 +825,7 @@ DevicePathFromHandle (
   IN EFI_HANDLE                      Handle
   )
 {
+#ifndef MM_STANDALONE_BUILD
   EFI_DEVICE_PATH_PROTOCOL  *DevicePath;
   EFI_STATUS                Status;
 
@@ -837,6 +838,9 @@ DevicePathFromHandle (
     DevicePath = NULL;
   }
   return DevicePath;
+#else
+  return NULL;
+#endif
 }
 
 /**
