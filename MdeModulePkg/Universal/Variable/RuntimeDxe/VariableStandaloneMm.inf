@@ -74,6 +74,9 @@
   StandaloneMmDriverEntryPoint
   SynchronizationLib
   VarCheckLib
+  ## MU_CHANGE - Remove VariableLockRequestToLock() in lieu of VariablePolicy.
+  MuVariablePolicyHelperLib
+  AdvLoggerAccessLib
 
 [Protocols]
   gEfiSmmFirmwareVolumeBlockProtocolGuid        ## CONSUMES
@@ -114,6 +117,7 @@
   ## SOMETIMES_CONSUMES   ## Variable:L"VarErrorFlag"
   ## SOMETIMES_PRODUCES   ## Variable:L"VarErrorFlag"
   gEdkiiVarErrorFlagGuid
+  gAdvLoggerAccessGuid                                               ## CONSUMES   MU_CHANGE
 
 [FixedPcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize       ## CONSUMES
