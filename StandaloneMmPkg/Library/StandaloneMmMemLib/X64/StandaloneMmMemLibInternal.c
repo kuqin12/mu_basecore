@@ -14,12 +14,18 @@
 **/
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/DebugLib.h>
 #include <Library/HobLib.h>
+
+#include <Guid/MmramMemoryReserve.h>
+
 //
 // Maximum support address used to check input buffer
 //
 extern EFI_PHYSICAL_ADDRESS  mMmMemLibInternalMaximumSupportAddress;
+extern EFI_MMRAM_DESCRIPTOR *mMmMemLibInternalMmramRanges;
+extern UINTN                 mMmMemLibInternalMmramCount;
 
 /**
   Calculate and save the maximum support address.
@@ -64,4 +70,52 @@ MmMemLibInternalCalculateMaximumSupportAddress (
   DEBUG ((EFI_D_INFO, "mMmMemLibInternalMaximumSupportAddress = 0x%lx\n", mMmMemLibInternalMaximumSupportAddress));
 }
 
+/**
+  Initialize cached Mmram Ranges from HOB.
+
+**/
+VOID
+MmMemLibInternalPopulateMmramRanges (
+  VOID
+  )
+{
+  EFI_HOB_GUID_TYPE               *MmramRangesHob;
+  EFI_MMRAM_HOB_DESCRIPTOR_BLOCK  *MmramRangesHobData;
+
+  MmramRangesHob = GetFirstGuidHob (&gEfiMmPeiMmramMemoryReserveGuid);
+  if (MmramRangesHob == NULL) {
+    return;
+  }
+
+  MmramRangesHobData = GET_GUID_HOB_DATA (MmramRangesHob);
+  if (MmramRangesHobData == NULL) {
+    return;
+  }
+
+  if (MmramRangesHobData->Descriptor == NULL) {
+    return;
+  }
+
+  mMmMemLibInternalMmramRanges = AllocatePool (MmramRangesHobData->NumberOfMmReservedRegions * sizeof (EFI_MMRAM_DESCRIPTOR));
+  if (mMmMemLibInternalMmramRanges) {
+    CopyMem (mMmMemLibInternalMmramRanges,
+             MmramRangesHobData->Descriptor,
+             MmramRangesHobData->NumberOfMmReservedRegions * sizeof (EFI_MMRAM_DESCRIPTOR));
+    mMmMemLibInternalMmramCount = MmramRangesHobData->NumberOfMmReservedRegions;
+  }
+}
+
+/**
+  Deinitialize cached Mmram Ranges.
+
+**/
+VOID
+MmMemLibInternalFreeMmramRanges (
+  VOID
+  )
+{
+  if (mMmMemLibInternalMmramRanges != NULL) {
+    FreePool (mMmMemLibInternalMmramRanges);
+  }
+}
 

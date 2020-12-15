@@ -38,6 +38,24 @@ MmMemLibInternalCalculateMaximumSupportAddress (
   );
 
 /**
+  Initialize cached Mmram Ranges from HOB.
+
+**/
+VOID
+MmMemLibInternalPopulateMmramRanges (
+  VOID
+  );
+
+/**
+  Deinitialize cached Mmram Ranges.
+
+**/
+VOID
+MmMemLibInternalFreeMmramRanges (
+  VOID
+  );
+
+/**
   This function check if the buffer is valid per processor architecture and not overlap with MMRAM.
 
   @param Buffer  The buffer start address to be checked.
@@ -258,6 +276,36 @@ MemLibConstructor (
   // Calculate and save maximum support address
   //
   MmMemLibInternalCalculateMaximumSupportAddress ();
+
+  //
+  // Initialize cached Mmram Ranges from HOB.
+  //
+  MmMemLibInternalPopulateMmramRanges ();
+
+  return EFI_SUCCESS;
+}
+
+/**
+  Destructor for the library.  free any resources for Mm Mem library
+
+  @param ImageHandle    The image handle of the process.
+  @param SystemTable    The EFI System Table pointer.
+
+  @retval EFI_SUCCESS   The constructor always returns EFI_SUCCESS.
+
+**/
+EFI_STATUS
+EFIAPI
+MemLibDestructor (
+  IN EFI_HANDLE             ImageHandle,
+  IN EFI_MM_SYSTEM_TABLE    *MmSystemTable
+  )
+{
+
+  //
+  // Deinitialize cached Mmram Ranges.
+  //
+  MmMemLibInternalFreeMmramRanges ();
 
   return EFI_SUCCESS;
 }

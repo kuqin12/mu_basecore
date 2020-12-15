@@ -40,4 +40,27 @@ MmMemLibInternalCalculateMaximumSupportAddress (
   DEBUG ((DEBUG_INFO, "mMmMemLibInternalMaximumSupportAddress = 0x%lx\n", mMmMemLibInternalMaximumSupportAddress));
 }
 
+/**
+  Initialize Mmram Ranges from HOB.
+
+**/
+VOID
+MmMemLibInternalPopulateMmramRanges (
+  VOID
+  )
+{
+  //TODO: Not implemented for AARCH64.
+}
+
+/**
+  Deinitialize cached Mmram Ranges.
+
+**/
+VOID
+MmMemLibInternalFreeMmramRanges (
+  VOID
+  )
+{
+  //TODO: Not implemented for AARCH64.
+}
 

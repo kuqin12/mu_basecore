@@ -22,6 +22,7 @@
   PI_SPECIFICATION_VERSION       = 0x00010032
   LIBRARY_CLASS                  = MemLib|MM_STANDALONE MM_CORE_STANDALONE
   CONSTRUCTOR                    = MemLibConstructor
+  DESTRUCTOR                     = MemLibDestructor
 
 #
 # The following information is for reference only and not required by the build tools.
@@ -46,3 +47,6 @@
   BaseMemoryLib
   DebugLib
   HobLib
+
+[Guids]
+  gEfiMmPeiMmramMemoryReserveGuid
