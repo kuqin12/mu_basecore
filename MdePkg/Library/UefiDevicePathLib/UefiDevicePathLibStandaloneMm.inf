@@ -14,7 +14,7 @@
   INF_VERSION                    = 0x00010005
   BASE_NAME                      = UefiDevicePathLib
   MODULE_UNI_FILE                = UefiDevicePathLib.uni
-  FILE_GUID                      = 91c1677a-e57f-4191-8b8e-eb7711a716e0
+  FILE_GUID                      = D8E58437-44D3-4154-B7A7-EB794923EF12
   MODULE_TYPE                    = MM_STANDALONE
   PI_SPECIFICATION_VERSION       = 0x00010032
   VERSION_STRING                 = 1.0
@@ -27,6 +27,7 @@
 
 [Sources]
   DevicePathUtilities.c
+  DevicePathUtilitiesStandaloneMm.c
   DevicePathToText.c
   DevicePathFromText.c
   UefiDevicePathLib.c
@@ -72,7 +73,3 @@
 
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdMaximumDevicePathNodeCount    ## SOMETIMES_CONSUMES
-
-[BuildOptions]
-  #C flag for MM_STANDALONE to remove reference of gBS
-  MSFT:*_*_*_CC_FLAGS  = /D MM_STANDALONE_BUILD
