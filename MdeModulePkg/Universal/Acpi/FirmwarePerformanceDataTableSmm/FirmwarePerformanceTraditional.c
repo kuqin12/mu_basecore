@@ -53,7 +53,7 @@ IsBufferOutsideMmValid (
 **/
 EFI_STATUS
 EFIAPI
-FirmwarePerformanceStandaloneMmEntryPoint (
+FirmwarePerformanceSmmEntryPoint (
   IN EFI_HANDLE          ImageHandle,
   IN EFI_SYSTEM_TABLE    *SystemTable
   )

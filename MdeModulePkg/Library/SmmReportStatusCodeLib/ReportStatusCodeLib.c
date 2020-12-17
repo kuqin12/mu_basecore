@@ -18,6 +18,8 @@
 #include <Guid/StatusCodeDataTypeDebug.h>
 #include <Protocol/MmStatusCode.h>
 
+#include "ReportStatusCodeLib.h"
+
 EFI_MM_REPORT_STATUS_CODE     mReportStatusCode = NULL;
 EFI_MM_STATUS_CODE_PROTOCOL   *mStatusCodeProtocol = NULL;
 
@@ -36,7 +38,7 @@ InternalGetReportStatusCode (
 {
   EFI_STATUS                    Status;
 
-  Status = gMmst->MmLocateProtocol (&gEfiMmStatusCodeProtocolGuid, NULL, (VOID**)&mStatusCodeProtocol);
+  Status = InternalLocateProtocol (&gEfiMmStatusCodeProtocolGuid, NULL, (VOID**)&mStatusCodeProtocol);
   if (!EFI_ERROR (Status) && mStatusCodeProtocol != NULL) {
     return mStatusCodeProtocol->ReportStatusCode;
   }
