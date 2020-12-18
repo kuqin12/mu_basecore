@@ -32,6 +32,8 @@
   Tpm2Tis.c
   Tpm2Ptp.c
   Tpm2InstanceLibDTpm.c
+  Tpm2DeviceLibDTpmBase.c
+  Tpm2DeviceLibDTpm.h
 
 [Packages]
   MdePkg/MdePkg.dec

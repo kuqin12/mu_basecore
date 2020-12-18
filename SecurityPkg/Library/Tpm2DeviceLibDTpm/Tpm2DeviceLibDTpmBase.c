@@ -1,7 +1,5 @@
 /** @file
-  This library is TPM2 DTPM instance.
-  It can be registered to Tpm2 Device router, to be active TPM2 engine,
-  based on platform setting.
+  This file abstract internal interfaces of which implementation differs per library instance.
 
 Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved. <BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -9,11 +7,9 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #include <Library/Tpm2DeviceLib.h>
+#include <Library/PcdLib.h>
 
 #include "Tpm2DeviceLibDTpm.h"
-
-TPM2_PTP_INTERFACE_TYPE  mActiveTpmInterfaceType;
-UINT8                    mCRBIdleByPass;
 
 /**
   Return cached PTP CRB interface IdleByPass state.
@@ -25,7 +21,7 @@ GetCachedIdleByPass (
   VOID
   )
 {
-  return mCRBIdleByPass;
+  return PcdGet8(PcdCRBIdleByPass);
 }
 
 /**
@@ -38,7 +34,7 @@ GetCachedPtpInterface (
   VOID
   )
 {
-  return mActiveTpmInterfaceType;
+  return PcdGet8(PcdActiveTpmInterfaceType);
 }
 
 /**
@@ -52,16 +48,20 @@ InternalTpm2DeviceLibDTpmCommonConstructor (
   VOID
   )
 {
-  mActiveTpmInterfaceType = 0xFF;
-  mCRBIdleByPass = 0xFF;
+  TPM2_PTP_INTERFACE_TYPE  PtpInterface;
+  UINT8                    IdleByPass;
 
   //
-  // Always cache current active TpmInterfaceType for StandaloneMm implementation
+  // Cache current active TpmInterfaceType only when needed
   //
-  mActiveTpmInterfaceType = Tpm2GetPtpInterface ((VOID *) (UINTN) PcdGet64 (PcdTpmBaseAddress));
+  if (PcdGet8(PcdActiveTpmInterfaceType) == 0xFF) {
+    PtpInterface = Tpm2GetPtpInterface ((VOID *) (UINTN) PcdGet64 (PcdTpmBaseAddress));
+    PcdSet8S(PcdActiveTpmInterfaceType, PtpInterface);
+  }
 
-  if (mActiveTpmInterfaceType == Tpm2PtpInterfaceCrb) {
-    mCRBIdleByPass = Tpm2GetIdleByPass((VOID *) (UINTN) PcdGet64 (PcdTpmBaseAddress));
+  if (PcdGet8(PcdActiveTpmInterfaceType) == Tpm2PtpInterfaceCrb && PcdGet8(PcdCRBIdleByPass) == 0xFF) {
+    IdleByPass = Tpm2GetIdleByPass((VOID *) (UINTN) PcdGet64 (PcdTpmBaseAddress));
+    PcdSet8S(PcdCRBIdleByPass, IdleByPass);
   }
 
   return EFI_SUCCESS;

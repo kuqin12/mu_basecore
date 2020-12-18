@@ -16,29 +16,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #include <Guid/TpmInstance.h>
 
-/**
-  Return PTP interface type.
-
-  @param[in] Register                Pointer to PTP register.
-
-  @return PTP interface type.
-**/
-TPM2_PTP_INTERFACE_TYPE
-Tpm2GetPtpInterface (
-  IN VOID *Register
-  );
-
-/**
-  Return PTP CRB interface IdleByPass state.
-
-  @param[in] Register                Pointer to PTP register.
-
-  @return PTP CRB interface IdleByPass state.
-**/
-UINT8
-Tpm2GetIdleByPass (
-  IN VOID *Register
-  );
+#include "Tpm2DeviceLibDTpm.h"
 
 /**
   Dump PTP register information.
@@ -111,19 +89,7 @@ Tpm2InstanceLibDTpmConstructor (
     // Unsupported means platform policy does not need this instance enabled.
     //
     if (Status == EFI_SUCCESS) {
-      //
-      // Cache current active TpmInterfaceType only when needed
-      //
-      if (PcdGet8(PcdActiveTpmInterfaceType) == 0xFF) {
-        PtpInterface = Tpm2GetPtpInterface ((VOID *) (UINTN) PcdGet64 (PcdTpmBaseAddress));
-        PcdSet8S(PcdActiveTpmInterfaceType, PtpInterface);
-      }
-
-      if (PcdGet8(PcdActiveTpmInterfaceType) == Tpm2PtpInterfaceCrb && PcdGet8(PcdCRBIdleByPass) == 0xFF) {
-        IdleByPass = Tpm2GetIdleByPass((VOID *) (UINTN) PcdGet64 (PcdTpmBaseAddress));
-        PcdSet8S(PcdCRBIdleByPass, IdleByPass);
-      }
-
+      Status = InternalTpm2DeviceLibDTpmCommonConstructor ();
       DumpPtpInfo ((VOID *) (UINTN) PcdGet64 (PcdTpmBaseAddress));
     }
     return EFI_SUCCESS;
