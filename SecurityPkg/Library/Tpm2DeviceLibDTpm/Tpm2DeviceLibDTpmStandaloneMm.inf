@@ -21,10 +21,11 @@
   INF_VERSION                    = 0x00010005
   BASE_NAME                      = Tpm2DeviceLibDTpmStandaloneMm
   FILE_GUID                      = 9A5DB21A-FF0B-46D0-8672-B4F83FEF1F0E
-  MODULE_TYPE                    = MM_STANDALONE
+  MODULE_TYPE                    = BASE
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = Tpm2DeviceLib|MM_STANDALONE
   CONSTRUCTOR                    = Tpm2DeviceLibConstructor
+
 #
 # The following information is for reference only and not required by the build tools.
 #
@@ -35,7 +36,7 @@
   Tpm2Tis.c
   Tpm2Ptp.c
   Tpm2DeviceLibDTpm.c
-  Tpm2DeviceLibDTpmBase.c
+  Tpm2DeviceLibDTpmStandaloneMm.c
   Tpm2DeviceLibDTpm.h
 
 [Packages]

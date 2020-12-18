@@ -56,6 +56,8 @@ GetCachedIdleByPass (
 
 /**
   The common function cache current active TpmInterfaceType when needed.
+
+  @retval EFI_SUCCESS   DTPM2.0 instance is registered, or system does not support register DTPM2.0 instance
 **/
 EFI_STATUS
 EFIAPI
