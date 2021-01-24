@@ -1551,19 +1551,19 @@ SendRuntimeVariableCacheContextToSmm (
   // MU_CHANGE: Request to unblock this region from MM core
   // These should be all on the same page, but just to be on the safe side...
   Status = MmUnblockMemoryRequest (
-            (EFI_PHYSICAL_ADDRESS) ALIGN_VALUE ((UINTN) SmmRuntimeVarCacheContext->PendingUpdate - EFI_PAGE_SIZE, EFI_PAGE_SIZE),
+            (EFI_PHYSICAL_ADDRESS) ALIGN_VALUE ((UINTN) SmmRuntimeVarCacheContext->PendingUpdate - EFI_PAGE_SIZE + 1, EFI_PAGE_SIZE),
             EFI_SIZE_TO_PAGES (sizeof(mVariableRuntimeCachePendingUpdate))
             );
   ASSERT_EFI_ERROR (Status);
 
   Status = MmUnblockMemoryRequest (
-            (EFI_PHYSICAL_ADDRESS) ALIGN_VALUE ((UINTN) SmmRuntimeVarCacheContext->ReadLock - EFI_PAGE_SIZE, EFI_PAGE_SIZE),
+            (EFI_PHYSICAL_ADDRESS) ALIGN_VALUE ((UINTN) SmmRuntimeVarCacheContext->ReadLock - EFI_PAGE_SIZE + 1, EFI_PAGE_SIZE),
             EFI_SIZE_TO_PAGES (sizeof(mVariableRuntimeCachePendingUpdate))
             );
   ASSERT_EFI_ERROR (Status);
 
   Status = MmUnblockMemoryRequest (
-            (EFI_PHYSICAL_ADDRESS) ALIGN_VALUE ((UINTN) SmmRuntimeVarCacheContext->HobFlushComplete - EFI_PAGE_SIZE, EFI_PAGE_SIZE),
+            (EFI_PHYSICAL_ADDRESS) ALIGN_VALUE ((UINTN) SmmRuntimeVarCacheContext->HobFlushComplete - EFI_PAGE_SIZE + 1, EFI_PAGE_SIZE),
             EFI_SIZE_TO_PAGES (sizeof(mVariableRuntimeCachePendingUpdate))
             );
   ASSERT_EFI_ERROR (Status);
