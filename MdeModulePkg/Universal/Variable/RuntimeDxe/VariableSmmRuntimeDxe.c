@@ -35,6 +35,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Library/DebugLib.h>
 #include <Library/UefiLib.h>
 #include <Library/BaseLib.h>
+#include <Library/MmUnblockMemoryLib.h>
 
 #include <Guid/EventGroup.h>
 #include <Guid/SmmVariableCommon.h>
@@ -153,6 +154,7 @@ InitVariableCache (
   IN OUT UINTN                   *TotalVariableCacheSize
   )
 {
+  EFI_STATUS              Status;
   VARIABLE_STORE_HEADER   *VariableCacheStorePtr;
 
   if (TotalVariableCacheSize == NULL) {
@@ -175,6 +177,14 @@ InitVariableCache (
   if (*VariableCacheBuffer == NULL) {
     return EFI_OUT_OF_RESOURCES;
   }
+
+  // MU_CHANGE: Request to unblock this region from MM core
+  Status = MmUnblockMemoryRequest (
+            (EFI_PHYSICAL_ADDRESS) (UINTN) *VariableCacheBuffer,
+            EFI_SIZE_TO_PAGES (*TotalVariableCacheSize)
+            );
+  ASSERT_EFI_ERROR (Status);
+
   VariableCacheStorePtr = *VariableCacheBuffer;
   SetMem32 ((VOID *) VariableCacheStorePtr, *TotalVariableCacheSize, (UINT32) 0xFFFFFFFF);
 
@@ -1537,6 +1547,26 @@ SendRuntimeVariableCacheContextToSmm (
   SmmRuntimeVarCacheContext->PendingUpdate = &mVariableRuntimeCachePendingUpdate;
   SmmRuntimeVarCacheContext->ReadLock = &mVariableRuntimeCacheReadLock;
   SmmRuntimeVarCacheContext->HobFlushComplete = &mHobFlushComplete;
+
+  // MU_CHANGE: Request to unblock this region from MM core
+  // These should be all on the same page, but just to be on the safe side...
+  Status = MmUnblockMemoryRequest (
+            (EFI_PHYSICAL_ADDRESS) ALIGN_VALUE ((UINTN) SmmRuntimeVarCacheContext->PendingUpdate - EFI_PAGE_SIZE, EFI_PAGE_SIZE),
+            EFI_SIZE_TO_PAGES (sizeof(mVariableRuntimeCachePendingUpdate))
+            );
+  ASSERT_EFI_ERROR (Status);
+
+  Status = MmUnblockMemoryRequest (
+            (EFI_PHYSICAL_ADDRESS) ALIGN_VALUE ((UINTN) SmmRuntimeVarCacheContext->ReadLock - EFI_PAGE_SIZE, EFI_PAGE_SIZE),
+            EFI_SIZE_TO_PAGES (sizeof(mVariableRuntimeCachePendingUpdate))
+            );
+  ASSERT_EFI_ERROR (Status);
+
+  Status = MmUnblockMemoryRequest (
+            (EFI_PHYSICAL_ADDRESS) ALIGN_VALUE ((UINTN) SmmRuntimeVarCacheContext->HobFlushComplete - EFI_PAGE_SIZE, EFI_PAGE_SIZE),
+            EFI_SIZE_TO_PAGES (sizeof(mVariableRuntimeCachePendingUpdate))
+            );
+  ASSERT_EFI_ERROR (Status);
 
   //
   // Send data to SMM.

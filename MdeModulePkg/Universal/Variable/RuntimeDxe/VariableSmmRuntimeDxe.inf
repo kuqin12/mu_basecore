@@ -56,6 +56,7 @@
   DxeServicesTableLib
   UefiDriverEntryPoint
   TpmMeasurementLib
+  MmUnblockMemoryLib
 
 [Protocols]
   gEfiVariableWriteArchProtocolGuid             ## PRODUCES
