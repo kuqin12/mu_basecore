@@ -96,6 +96,7 @@
   DebugAgentLib
   CpuExceptionHandlerLib
   PcdLib
+  SynchronizationLib
   BaseBinSecurityLib         ## MS_CHANGE_?
   DxeMemoryProtectionHobLib        ## MU_CHANGE
   MemoryBinOverrideLib      ## MU_CHANGE
@@ -178,6 +179,7 @@
   gEfiVariableArchProtocolGuid                  ## CONSUMES
   gEfiCapsuleArchProtocolGuid                   ## CONSUMES
   gEfiWatchdogTimerArchProtocolGuid             ## CONSUMES
+  gEfiThreadingProtocolGuid                     ## CONSUMES
   gEfiCpu2ProtocolGuid                          ## SOMETIMES_CONSUMES        ## MS_CHANGE
   gMemoryProtectionDebugProtocolGuid            ## SOMETIMES_PRODUCES        ## MS_CHANGE
   gEfiMemoryAttributeProtocolGuid               ## CONSUMES                  ## MS_CHANGE

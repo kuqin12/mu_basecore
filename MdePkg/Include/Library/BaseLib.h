@@ -6999,6 +6999,13 @@ AsmReadTsc (
   VOID
   );
 
+UINT64
+EFIAPI
+AsmReadTscp (
+  VOID
+  );
+
+
 /**
   Reads the current value of a Performance Counter (PMC).
 

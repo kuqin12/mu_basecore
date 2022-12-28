@@ -69,6 +69,7 @@
   #
   UefiUsbLib|MdePkg/Library/UefiUsbLib/UefiUsbLib.inf
   UefiScsiLib|MdePkg/Library/UefiScsiLib/UefiScsiLib.inf
+  ThreadingStructLib|MdeModulePkg/Library/DxeThreadingStructLib/DxeThreadingStructLib.inf
   SecurityManagementLib|MdeModulePkg/Library/DxeSecurityManagementLib/DxeSecurityManagementLib.inf
   TimerLib|MdePkg/Library/BaseTimerLibNullTemplate/BaseTimerLibNullTemplate.inf
   SerialPortLib|MdePkg/Library/BaseSerialPortLibNull/BaseSerialPortLibNull.inf
@@ -77,6 +78,7 @@
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   CustomizedDisplayLib|MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf
   FrameBufferBltLib|MdeModulePkg/Library/FrameBufferBltLib/FrameBufferBltLib.inf
+  ThreadingLib|MdeModulePkg/Library/DxeThreadingLib/DxeThreadingLib.inf
 
   #
   # Misc
@@ -528,6 +530,7 @@
   # MU_CHANGE - Add DeviceStateLib to MdeModulePkg:
   MdeModulePkg/Library/DeviceStateLib/DeviceStateLib.inf
   MdeModulePkg/Library/BaseVariableFlashInfoLib/BaseVariableFlashInfoLib.inf
+  MdeModulePkg/Universal/ThreadingDxe/ThreadingDxe.inf
   MdeModulePkg/Library/PcdDatabaseLoaderLib/Pei/PcdDatabaseLoaderLibPei.inf   # MU_CHANGE
   MdeModulePkg/Library/PcdDatabaseLoaderLib/Dxe/PcdDatabaseLoaderLibDxe.inf   # MU_CHANGE
   MdeModulePkg/Library/MemoryBinOverrideLibNull/MemoryBinOverrideLibNull.inf  # MU_CHANGE

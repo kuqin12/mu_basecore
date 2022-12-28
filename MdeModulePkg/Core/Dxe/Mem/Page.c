@@ -103,7 +103,7 @@ CoreAcquireMemoryLock (
   VOID
   )
 {
-  CoreAcquireLock (&gMemoryLock);
+  CoreAcquireSpinLock (&gMemoryLock, __FILE__, __LINE__);
 }
 
 /**
@@ -115,7 +115,7 @@ CoreReleaseMemoryLock (
   VOID
   )
 {
-  CoreReleaseLock (&gMemoryLock);
+  CoreReleaseSpinLock (&gMemoryLock);
 }
 
 /**
@@ -166,7 +166,7 @@ CoreAddRange (
   ASSERT ((Start & EFI_PAGE_MASK) == 0);
   ASSERT (End > Start);
 
-  ASSERT_LOCKED (&gMemoryLock);
+  ASSERT (gMemoryLock.Lock == 2);
 
   DEBUG ((DEBUG_PAGE, "AddRange: %lx-%lx to %d\n", Start, End, Type));
 
@@ -321,7 +321,7 @@ CoreFreeMemoryMapStack (
   MEMORY_MAP  *Entry2;
   LIST_ENTRY  *Link2;
 
-  ASSERT_LOCKED (&gMemoryLock);
+  ASSERT (gMemoryLock.Lock == 2);
 
   //
   // If already freeing the map stack, then return
@@ -578,7 +578,7 @@ CoreAddMemoryDescriptor (
     return;
   }
 
-  CoreAcquireMemoryLock ();
+  CoreAcquireSpinLock (&gMemoryLock, __FILE__, __LINE__);
   End = Start + LShiftU64 (NumberOfPages, EFI_PAGE_SHIFT) - 1;
   CoreAddRange (Type, Start, End, Attribute);
   CoreFreeMemoryMapStack ();
@@ -783,7 +783,7 @@ CoreConvertPagesEx (
   ASSERT (NumberOfPages);
   ASSERT ((Start & EFI_PAGE_MASK) == 0);
   ASSERT (End > Start);
-  ASSERT_LOCKED (&gMemoryLock);
+  ASSERT (gMemoryLock.Lock == 2);
   ASSERT ((ChangingType == FALSE) || (ChangingAttributes == FALSE));
 
   if ((NumberOfPages == 0) || ((Start & EFI_PAGE_MASK) != 0) || (Start >= End)) {
@@ -1033,7 +1033,7 @@ CoreUpdateMemoryAttributes (
   IN UINT64                NewAttributes
   )
 {
-  CoreAcquireMemoryLock ();
+  CoreAcquireSpinLock (&gMemoryLock, __FILE__, __LINE__);
 
   //
   // Update the attributes to the new value
@@ -1426,7 +1426,7 @@ CoreInternalAllocatePages (
     MaxAddress = Start;
   }
 
-  CoreAcquireMemoryLock ();
+  CoreAcquireSpinLock (&gMemoryLock, __FILE__, __LINE__);
 
   //
   // If not a specific address, then find an address to allocate
@@ -1587,7 +1587,7 @@ CoreInternalFreePages (
   //
   // Free the range
   //
-  CoreAcquireMemoryLock ();
+  CoreAcquireSpinLock (&gMemoryLock, __FILE__, __LINE__);
 
   //
   // Find the entry that the covers the range
@@ -1865,7 +1865,7 @@ CoreGetMemoryMap (
     *DescriptorVersion = EFI_MEMORY_DESCRIPTOR_VERSION;
   }
 
-  CoreAcquireMemoryLock ();
+  CoreAcquireSpinLock (&gMemoryLock, __FILE__, __LINE__);
 
   //
   // Compute the buffer size needed to fit the entire map
