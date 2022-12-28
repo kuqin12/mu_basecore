@@ -1608,11 +1608,6 @@ EFI_STATUS
   OUT VOID      **Interface
   );
 
-typedef
-UINT64
-(EFIAPI *EFI_GET_TIME)(
-  );
-
 ///
 /// EFI Capsule Block Descriptor
 ///
