@@ -32,7 +32,7 @@ LwipTcpTest (
   int     Socket, NewSocket;
   struct sockaddr_in Address;
   struct sockaddr_in ClientAddress;
-  int     ClientAddressLength;
+  unsigned int       ClientAddressLength;
 
   DBG ("[MP TCPIP][TCP] Running TCP test\n");
 

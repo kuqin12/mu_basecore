@@ -22,6 +22,7 @@ typedef INT32     s32_t;
 typedef UINTN     mem_ptr_t;
 
 typedef UINT16    uint16_t;
+typedef UINTN     size_t;
 typedef UINTN     ptrdiff_t;
 
 #define X8_F      "x"
@@ -42,6 +43,6 @@ typedef UINTN     ptrdiff_t;
 
 #define NO_PARENTH(...)   __VA_ARGS__
 #define LWIP_PLATFORM_DIAG(message)   DEBUG ((EFI_D_WARN, NO_PARENTH message));
-#define LWIP_PLATFORM_ASSERT
+#define LWIP_PLATFORM_ASSERT(expression)
 
 #endif /* MDEMODULEPKG_UNIVERSAL_NETWORK_LWIPDXE_CC_H_ */

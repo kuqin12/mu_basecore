@@ -14,6 +14,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #ifndef __MP_TCPIP_H__
 #define __MP_TCPIP_H__
 
+// #include "lwipSupport.h"
 #include "lwip/netif.h"
 #include "lwip/init.h"
 #include "lwip/etharp.h"
@@ -29,7 +30,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "LwipDevice.h"
 #include "MpTcpIpCommon.h"
 
-#pragma warning (disable : 4702)    /* unreachable code warning */
+// #pragma warning (disable : 4702)    /* unreachable code warning */
 
 extern EFI_DRIVER_BINDING_PROTOCOL   gMpTcpIpDriverBinding;
 

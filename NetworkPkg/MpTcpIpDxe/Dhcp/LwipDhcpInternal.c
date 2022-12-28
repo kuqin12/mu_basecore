@@ -792,7 +792,7 @@ DhcpGetParameter (
 //
 // Note to self: this function is only called by LWIP when DHCP event occurs.
 //
-err_t
+VOID
 DhcpStatusCallback (
   IN  struct netif          *NetIf,
   IN  dhcp_event            DhcpEvent,
@@ -822,8 +822,6 @@ DhcpStatusCallback (
     CpuPause ();
   }
   DBG ("DhcpStatusCallback: Waiter notified.\n");
-
-  return ERR_OK;
 }
 
 VOID
