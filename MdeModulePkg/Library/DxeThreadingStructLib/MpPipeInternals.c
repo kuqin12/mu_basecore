@@ -7,6 +7,17 @@
 
 #include "MpPipeInternals.h"
 
+#ifdef __GNUC__
+  #define _ReadWriteBarrier()  do { __asm__ __volatile__ ("": : : "memory"); } while(0)
+#else
+  void
+  _ReadWriteBarrier (
+    void
+    );
+
+  #pragma intrinsic(_ReadWriteBarrier)
+#endif
+
 typedef struct _THREAD_QUEUE_ENTRY {
   LIST_ENTRY      Link;
   UINT32          Trigger;

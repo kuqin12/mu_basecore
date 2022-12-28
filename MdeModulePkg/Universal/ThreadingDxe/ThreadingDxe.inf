@@ -19,8 +19,8 @@
   Threading.c
 
 [BuildOptions.common]
-*_*_*_ASM_FLAGS = /D THREADING_SUPPORTED_CPUS=16
-*_*_*_CC_FLAGS  = /D THREADING_SUPPORTED_CPUS=16 /FAcs
+  *_*_*_ASM_FLAGS = /D THREADING_SUPPORTED_CPUS=16
+  *_*_*_CC_FLAGS  = -D THREADING_SUPPORTED_CPUS=16
 
 [Packages]
   MdePkg/MdePkg.dec
