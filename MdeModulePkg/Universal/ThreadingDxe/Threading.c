@@ -106,7 +106,7 @@ ThreadingLocateMpProtocol (
 
   DEBUG ((EFI_D_ERROR, "[T][INIT] Locating MP service protocol\n"));
 
-  Status = gBS->LocateProtocol (&gEfiMpServiceProtocolGuid, NULL, &mMultiProc);
+  Status = gBS->LocateProtocol (&gEfiMpServiceProtocolGuid, NULL, (VOID **)&mMultiProc);
 
   if (EFI_ERROR (Status)) {
     DEBUG ((EFI_D_ERROR, "[T][INIT] MP service protocol not found\n"));
@@ -266,8 +266,8 @@ ThreadingCoreInitProcedure (
   //
   TscAux = (UINT32)(CpuInfo - mThreadingData.CpuInfo);
 
-  AsmWriteMsr32 (MSR_IA32_TSC_AUX, TscAux);
-  TscAux = AsmReadMsr32 (MSR_IA32_TSC_AUX);
+  // AsmWriteMsr32 (MSR_IA32_TSC_AUX, TscAux);
+  // TscAux = AsmReadMsr32 (MSR_IA32_TSC_AUX);
   DEBUG ((EFI_D_INFO, "[T][INIT][CPU %d] TscAux after update: %lX\n", CpuInfo->CpuId, TscAux));
 
   CpuInfo->Initialized = TRUE;
@@ -325,10 +325,13 @@ ThreadingIdentifyCpu (
   )
 {
   THREADING_CPU_INFO  *CpuInfo;
-  UINT32              TscAux;
+  // UINT32              TscAux;
+  UINTN               ProcessorId;
+  EFI_STATUS          Status;
 
-  TscAux = (UINT32)AsmReadTscp ();            // This is somehow faster :O
-  CpuInfo = &mThreadingData.CpuInfo[TscAux];
+  Status = mMultiProc->WhoAmI (mMultiProc, &ProcessorId);
+  // TscAux = (UINT32)AsmReadTscp ();            // This is somehow faster :O
+  CpuInfo = &mThreadingData.CpuInfo[ProcessorId];
 
   *CpuId = (UINT32)CpuInfo->CpuId;
   *IsBsp = (BOOLEAN)(CpuInfo->State == THREADING_CPU_BSP);
@@ -555,7 +558,7 @@ ThreadingWaitForThread (
 EFI_STATUS
 EFIAPI
 ThreadingCleanupThread (
-  IN  EFI_THREAD      Thread
+  IN  EFI_THREAD      *Thread
   )
 {
   INTERNAL_EFI_THREAD   *IThread;
@@ -672,6 +675,11 @@ ThreadingAbortThread (
     mMultiProc->EnableDisableAP (mMultiProc, IThread->CpuId, TRUE, NULL);
     DEBUG ((EFI_D_INFO, "[T] AbortThread: Notifying finished event...\n"));
     gBS->SignalEvent (IThread->FinishedEvent);
+    break;
+  case THREADING_THREAD_SPAWNED:
+    // Fall through
+  default:
+    // Do nothing
     break;
   }
 
@@ -826,7 +834,7 @@ ThreadingDriverEntryPoint (
   //
   // Test if MP Services protocol is installed
   //
-  Status = gBS->LocateProtocol (&gEfiMpServiceProtocolGuid, NULL, &mMultiProc);
+  Status = gBS->LocateProtocol (&gEfiMpServiceProtocolGuid, NULL, (VOID **)&mMultiProc);
   ASSERT_EFI_ERROR (Status);
 
   //

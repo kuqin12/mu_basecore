@@ -70,7 +70,7 @@ ThreadingWaitForThread (
 EFI_STATUS
 EFIAPI
 ThreadingCleanupThread (
-  IN  EFI_THREAD      Thread
+  IN  EFI_THREAD      *Thread
   );
 
 //
