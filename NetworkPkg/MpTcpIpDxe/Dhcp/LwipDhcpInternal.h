@@ -66,7 +66,7 @@ DhcpIterateOptions (
   IN  VOID                  *Context
   );
 
-err_t
+VOID
 DhcpStatusCallback (
   IN  struct netif          *NetIf,
   IN  dhcp_event            DhcpEvent,

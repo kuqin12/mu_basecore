@@ -23,6 +23,7 @@
   UNLOAD_IMAGE                   = NetLibDefaultUnload
 
 [BuildOptions.common]
+  GCC:*_*_*_CC_FLAGS = -Wno-parentheses
 
 [Sources]
   api/err.c
@@ -73,7 +74,8 @@
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
-  MdeModulePkg/Universal/Network/MpTcpIpDxe/MpTcpIpDxe.dec
+  NetworkPkg/NetworkPkg.dec
+  NetworkPkg/MpTcpIpDxe/MpTcpIpDxe.dec
 
 [LibraryClasses]
   BaseLib
