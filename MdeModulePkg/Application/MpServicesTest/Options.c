@@ -47,58 +47,6 @@ GetArg (
 }
 
 /**
-  Checks if the character is a decimal digit.
-
-  @param Char The character to check.
-
-  @return TRUE if the character is a decimal digit.
-**/
-BOOLEAN
-IsUnicodeDecimalDigit (
-  CHAR16  Char
-  )
-{
-  return ((BOOLEAN)(Char >= L'0' && Char <= L'9'));
-}
-
-/**
-  Converts the string to an integer.
-
-  @param String The input string.
-  @param Value  The converted number.
-
-  @return EFI_SUCCESS on success, or an error code.
-**/
-EFI_STATUS
-UnicodeStringToInteger (
-  CHAR16  *String,
-  UINTN   *Value
-  )
-{
-  UINTN  Result;
-
-  Result = 0;
-
-  if ((String == NULL) || (StrSize (String) == 0) || (Value == NULL)) {
-    return (EFI_INVALID_PARAMETER);
-  }
-
-  while (IsUnicodeDecimalDigit (*String)) {
-    if (!(Result <= (DivU64x32 ((((UINT64) ~0) - (*String - L'0')), 10)))) {
-      return (EFI_DEVICE_ERROR);
-    }
-
-    // MU_CHANGE: Fixing interger type mismatch
-    Result = (UINTN)(MultU64x32 (Result, 10) + (*String - L'0'));
-    String++;
-  }
-
-  *Value = Result;
-
-  return (EFI_SUCCESS);
-}
-
-/**
   Print app usage.
 **/
 STATIC
@@ -112,7 +60,7 @@ PrintUsage (
   Print (L"  MpServicesTest -T <Timeout>\n");
   Print (L"  MpServicesTest -S <Processor #>\n");
   Print (L"  MpServicesTest -P\n");
-  Print (L"  MpServicesTest -U <Processor #>\n");
+  Print (L"  MpServicesTest -U\n");
   Print (L"  MpServicesTest -W\n");
   Print (L"  MpServicesTest -E <Processor #>\n");
   Print (L"  MpServicesTest -D <Processor #>\n");
@@ -197,7 +145,7 @@ ParseArguments (
 
     if (NeedsValue) {
       if ((ArgIndex + 1) < Argc) {
-        Status = UnicodeStringToInteger (Argv[ArgIndex + 1], Value);
+        Status = StrDecimalToUintnS (Argv[ArgIndex + 1], NULL, Value);
         if (EFI_ERROR (Status)) {
           Print (L"Error: option value must be a positive integer.\n");
           PrintUsage ();

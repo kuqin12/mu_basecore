@@ -31,7 +31,6 @@
 
 [LibraryClasses]
   BaseLib
-  CacheMaintenanceLib
   ShellLib
   UefiApplicationEntryPoint
   UefiLib

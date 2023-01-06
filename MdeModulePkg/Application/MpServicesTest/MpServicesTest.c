@@ -7,7 +7,6 @@
 
 #include <Uefi.h>
 #include <Library/BaseMemoryLib.h>
-#include <Library/CacheMaintenanceLib.h>
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PrintLib.h>
@@ -287,7 +286,7 @@ StartupThisAP (
     L"StartupThisAP on Processor %d with %d%s timeout...",
     ProcessorIndex,
     Timeout,
-    (Timeout == INFINITE_TIMEOUT) ? " (infinite)" : "ms"
+    (Timeout == INFINITE_TIMEOUT) ? L" (infinite)" : L"ms"
     );
   Status = Mp->StartupThisAP (
                  Mp,
@@ -340,10 +339,12 @@ StartupAllAPs (
   }
 
   Print (
-    L"Running with SingleThread TRUE, %dms timeout...",
+    L"Running with SingleThread %s, %u%s timeout...",
+    (RunAPsSequentially) ? L"TRUE" : L"FALSE",
     Timeout,
-    (Timeout == INFINITE_TIMEOUT) ? " (infinite)" : "ms"
+    (Timeout == INFINITE_TIMEOUT) ? L" (infinite)" : L"ms"
     );
+
   Status = Mp->StartupAllAPs (
                  Mp,
                  ApFunction,
@@ -353,11 +354,14 @@ StartupAllAPs (
                  &ApArg,
                  NULL
                  );
+
   if (EFI_ERROR (Status)) {
     Print (L"failed: %r\n", Status);
+
     return Status;
   } else {
     Print (L"done.\n");
+
     for (Index = 0; Index < NumCpus; Index++) {
       Print (ApArg.Buffer[Index]);
     }
@@ -470,8 +474,6 @@ UefiMain (
   UINTN                     NumCpus;
   BOOLEAN                   ProcessorHealthy;
   MP_SERVICES_TEST_OPTIONS  Options;
-
-  WriteBackDataCacheRange ((VOID *)&ApFunction, 32);
 
   BspIndex = 0;
 
