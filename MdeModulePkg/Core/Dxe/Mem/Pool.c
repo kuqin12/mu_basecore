@@ -217,7 +217,6 @@ CoreInternalAllocatePool (
   OUT VOID            **Buffer
   )
 {
-  BOOLEAN               NeedGuard;
   BOOLEAN     NeedGuard;
 
   //
