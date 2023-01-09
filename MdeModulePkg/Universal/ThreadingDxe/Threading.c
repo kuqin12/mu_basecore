@@ -397,6 +397,7 @@ ThreadingRunThread (
                          );
 
   if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_INFO, "[T][CPU %d][THREAD %lX, CPU %d] AP failed to start %r\n", MyCpuId, (UINT64)Thread, CpuId, Status));
     ThreadingCleanupThread ((EFI_THREAD*)Thread);
     goto ON_ERROR;
   }
@@ -581,7 +582,9 @@ ThreadingCleanupThread (
 
   AcquireSpinLock (&mThreadingData.ThreadsQueuedLock);
   if (IThread->State == THREADING_THREAD_SPAWNED) {
-    RemoveEntryList (&IThread->Entry);
+    if (!IsListEmpty (&IThread->Entry)) {
+      RemoveEntryList (&IThread->Entry);
+    }
     gBS->CloseEvent (IThread->FinishedEvent);
   }
   ReleaseSpinLock (&mThreadingData.ThreadsQueuedLock);
