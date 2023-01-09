@@ -160,7 +160,7 @@ Mtftp4RemoveBlockNum (
   IN LIST_ENTRY  *Head,
   IN UINT16      Num,
   IN BOOLEAN     Completed,
-  OUT UINT64     *BlockCounter
+  OUT UINT64     *TotalBlock
   )
 {
   MTFTP4_BLOCK_RANGE  *Range;

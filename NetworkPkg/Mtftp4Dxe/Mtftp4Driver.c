@@ -480,7 +480,7 @@ Mtftp4ServiceBindingCreateChild (
   Status = gBS->OpenProtocol (
                   MtftpSb->Controller,
                   &gEfiMpSocketProtocolGuid,
-                  &Instance->Sockets,
+                  (VOID**)&Instance->Sockets,
                   gMtftp4DriverBinding.DriverBindingHandle,
                   Instance->Handle,
                   EFI_OPEN_PROTOCOL_BY_CHILD_CONTROLLER
