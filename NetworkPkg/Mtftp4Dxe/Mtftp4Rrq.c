@@ -143,6 +143,7 @@ Mtftp4RrqSaveBlock (
   UINT16            Block;
   UINT64            Start;
   UINT32            DataLen;
+  UINT64            TotalBlock;
   BOOLEAN           Completed;
 
   Completed = FALSE;
