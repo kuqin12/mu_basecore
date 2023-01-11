@@ -209,7 +209,7 @@ DhcpParseOptions (
   struct dhcp_option        *LwipDhcpOptions;
   struct dhcp_option        *LwipDhcpOption;
 
-  if (Options == NULL || LwipOptions == NULL || LwipOptionsLength == NULL) {
+  if (((Options == NULL) && (OptionCount != 0)) || LwipOptions == NULL || LwipOptionsLength == NULL) {
     return EFI_INVALID_PARAMETER;
   }
 
