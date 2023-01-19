@@ -247,6 +247,8 @@ PxeBcTftpReadFile (
   UINT8               OptBuf[128];
   EFI_STATUS          Status;
 
+  DEBUG ((EFI_D_INFO, "[PXE BC] TFTP Read file.\n"));
+
   Status                    = EFI_DEVICE_ERROR;
   Mtftp4                    = Private->Mtftp4;
   OptCnt                    = 0;
@@ -323,50 +325,51 @@ PxeBcTftpWriteFile (
   IN OUT UINT64                 *BufferSize
   )
 {
-  EFI_MTFTP4_PROTOCOL *Mtftp4;
-  EFI_MTFTP4_TOKEN    Token;
-  EFI_MTFTP4_OPTION   ReqOpt[1];
-  UINT32              OptCnt;
-  UINT8               OptBuf[128];
-  EFI_STATUS          Status;
-
-  Status                    = EFI_DEVICE_ERROR;
-  Mtftp4                    = Private->Mtftp4;
-  OptCnt                    = 0;
-  Config->InitialServerPort = PXEBC_BS_DOWNLOAD_PORT;
-
-  Status  = Mtftp4->Configure (Mtftp4, Config);
-  if (EFI_ERROR (Status)) {
-
-    return Status;
-  }
-
-  if (BlockSize != NULL) {
-
-    ReqOpt[0].OptionStr = (UINT8*) mMtftpOptions[PXE_MTFTP_OPTION_BLKSIZE_INDEX];
-    ReqOpt[0].ValueStr  = OptBuf;
-    UtoA10 (*BlockSize, (CHAR8 *) ReqOpt[0].ValueStr, PXE_MTFTP_OPTBUF_MAXNUM_INDEX);
-    OptCnt++;
-  }
-
-  Token.Event           = NULL;
-  Token.OverrideData    = NULL;
-  Token.Filename        = Filename;
-  Token.ModeStr         = NULL;
-  Token.OptionCount     = OptCnt;
-  Token.OptionList      = ReqOpt;
-  Token.BufferSize      = *BufferSize;
-  Token.Buffer          = BufferPtr;
-  Token.CheckPacket     = PxeBcCheckPacket;
-  Token.TimeoutCallback = NULL;
-  Token.PacketNeeded    = NULL;
-
-  Status      = Mtftp4->WriteFile (Mtftp4, &Token);
-  *BufferSize = Token.BufferSize;
-
-  Mtftp4->Configure (Mtftp4, NULL);
-
-  return Status;
+//  EFI_MTFTP4_PROTOCOL *Mtftp4;
+//  EFI_MTFTP4_TOKEN    Token;
+//  EFI_MTFTP4_OPTION   ReqOpt[1];
+//  UINT32              OptCnt;
+//  UINT8               OptBuf[128];
+//  EFI_STATUS          Status;
+//
+//  Status                    = EFI_DEVICE_ERROR;
+//  Mtftp4                    = Private->Mtftp4;
+//  OptCnt                    = 0;
+//  Config->InitialServerPort = PXEBC_BS_DOWNLOAD_PORT;
+//
+//  Status  = Mtftp4->Configure (Mtftp4, Config);
+//  if (EFI_ERROR (Status)) {
+//
+//    return Status;
+//  }
+//
+//  if (BlockSize != NULL) {
+//
+//    ReqOpt[0].OptionStr = (UINT8*) mMtftpOptions[PXE_MTFTP_OPTION_BLKSIZE_INDEX];
+//    ReqOpt[0].ValueStr  = OptBuf;
+//    UtoA10 (*BlockSize, (CHAR8 *) ReqOpt[0].ValueStr, PXE_MTFTP_OPTBUF_MAXNUM_INDEX);
+//    OptCnt++;
+//  }
+//
+//  Token.Event           = NULL;
+//  Token.OverrideData    = NULL;
+//  Token.Filename        = Filename;
+//  Token.ModeStr         = NULL;
+//  Token.OptionCount     = OptCnt;
+//  Token.OptionList      = ReqOpt;
+//  Token.BufferSize      = *BufferSize;
+//  Token.Buffer          = BufferPtr;
+//  Token.CheckPacket     = PxeBcCheckPacket;
+//  Token.TimeoutCallback = NULL;
+//  Token.PacketNeeded    = NULL;
+//
+//  Status      = Mtftp4->WriteFile (Mtftp4, &Token);
+//  *BufferSize = Token.BufferSize;
+//
+//  Mtftp4->Configure (Mtftp4, NULL);
+//
+//  return Status;
+  return EFI_UNSUPPORTED;
 }
 
 
@@ -397,58 +400,59 @@ PxeBcTftpReadDirectory (
   IN BOOLEAN                       DontUseBuffer
   )
 {
-  EFI_MTFTP4_PROTOCOL *Mtftp4;
-  EFI_MTFTP4_TOKEN    Token;
-  EFI_MTFTP4_OPTION   ReqOpt[1];
-  UINT32              OptCnt;
-  UINT8               OptBuf[128];
-  EFI_STATUS          Status;
-
-  Status                    = EFI_DEVICE_ERROR;
-  Mtftp4                    = Private->Mtftp4;
-  OptCnt                    = 0;
-  Config->InitialServerPort = PXEBC_BS_DOWNLOAD_PORT;
-
-  Status = Mtftp4->Configure (Mtftp4, Config);
-  if (EFI_ERROR (Status)) {
-
-    return Status;
-  }
-
-  if (BlockSize != NULL) {
-
-    ReqOpt[0].OptionStr = (UINT8*) mMtftpOptions[PXE_MTFTP_OPTION_BLKSIZE_INDEX];
-    ReqOpt[0].ValueStr  = OptBuf;
-    UtoA10 (*BlockSize, (CHAR8 *) ReqOpt[0].ValueStr, PXE_MTFTP_OPTBUF_MAXNUM_INDEX);
-    OptCnt++;
-  }
-
-  Token.Event         = NULL;
-  Token.OverrideData  = NULL;
-  Token.Filename      = Filename;
-  Token.ModeStr       = NULL;
-  Token.OptionCount   = OptCnt;
-  Token.OptionList    = ReqOpt;
-  Token.Context       = Private;
-
-  if (DontUseBuffer) {
-    Token.BufferSize  = 0;
-    Token.Buffer      = NULL;
-  } else {
-    Token.BufferSize  = *BufferSize;
-    Token.Buffer      = BufferPtr;
-  }
-
-  Token.CheckPacket     = PxeBcCheckPacket;
-  Token.TimeoutCallback = NULL;
-  Token.PacketNeeded    = NULL;
-
-  Status = Mtftp4->ReadDirectory (Mtftp4, &Token);
-
-  *BufferSize = Token.BufferSize;
-
-  Mtftp4->Configure (Mtftp4, NULL);
-
-  return Status;
+//  EFI_MTFTP4_PROTOCOL *Mtftp4;
+//  EFI_MTFTP4_TOKEN    Token;
+//  EFI_MTFTP4_OPTION   ReqOpt[1];
+//  UINT32              OptCnt;
+//  UINT8               OptBuf[128];
+//  EFI_STATUS          Status;
+//
+//  Status                    = EFI_DEVICE_ERROR;
+//  Mtftp4                    = Private->Mtftp4;
+//  OptCnt                    = 0;
+//  Config->InitialServerPort = PXEBC_BS_DOWNLOAD_PORT;
+//
+//  Status = Mtftp4->Configure (Mtftp4, Config);
+//  if (EFI_ERROR (Status)) {
+//
+//    return Status;
+//  }
+//
+//  if (BlockSize != NULL) {
+//
+//    ReqOpt[0].OptionStr = (UINT8*) mMtftpOptions[PXE_MTFTP_OPTION_BLKSIZE_INDEX];
+//    ReqOpt[0].ValueStr  = OptBuf;
+//    UtoA10 (*BlockSize, (CHAR8 *) ReqOpt[0].ValueStr, PXE_MTFTP_OPTBUF_MAXNUM_INDEX);
+//    OptCnt++;
+//  }
+//
+//  Token.Event         = NULL;
+//  Token.OverrideData  = NULL;
+//  Token.Filename      = Filename;
+//  Token.ModeStr       = NULL;
+//  Token.OptionCount   = OptCnt;
+//  Token.OptionList    = ReqOpt;
+//  Token.Context       = Private;
+//
+//  if (DontUseBuffer) {
+//    Token.BufferSize  = 0;
+//    Token.Buffer      = NULL;
+//  } else {
+//    Token.BufferSize  = *BufferSize;
+//    Token.Buffer      = BufferPtr;
+//  }
+//
+//  Token.CheckPacket     = PxeBcCheckPacket;
+//  Token.TimeoutCallback = NULL;
+//  Token.PacketNeeded    = NULL;
+//
+//  Status = Mtftp4->ReadDirectory (Mtftp4, &Token);
+//
+//  *BufferSize = Token.BufferSize;
+//
+//  Mtftp4->Configure (Mtftp4, NULL);
+//
+//  return Status;
+  return EFI_UNSUPPORTED;
 }
 

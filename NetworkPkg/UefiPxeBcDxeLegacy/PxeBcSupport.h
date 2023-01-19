@@ -31,45 +31,6 @@ PxeBcCommonNotify (
 
 
 /**
-  This function initialize(or configure) the Udp4Write instance.
-
-  @param  Udp4       Pointer to the EFI_UDP4_PROTOCOL instance.
-  @param  StationIp  Pointer to the station ip address.
-  @param  SubnetMask Pointer to the subnetmask of the station ip address.
-  @param  Gateway    Pointer to the gateway ip address.
-  @param  SrcPort    Pointer to the srouce port of the station.
-  @param  Ttl        The time to live field of the IP header.
-  @param  ToS        The type of service field of the IP header.
-
-  @retval EFI_SUCCESS           The configuration settings were set, changed, or reset successfully.
-  @retval EFI_NO_MAPPING        When using a default address, configuration (DHCP, BOOTP,
-                                RARP, etc.) is not finished yet.
-  @retval EFI_INVALID_PARAMETER One or more following conditions are TRUE:
-  @retval EFI_ALREADY_STARTED   The EFI UDPv4 Protocol instance is already started/configured
-                                and must be stopped/reset before it can be reconfigured.
-  @retval EFI_ACCESS_DENIED     UdpConfigData. AllowDuplicatePort is FALSE
-                                and UdpConfigData.StationPort is already used by
-                                other instance.
-  @retval EFI_OUT_OF_RESOURCES  The EFI UDPv4 Protocol driver cannot allocate memory for this
-                                EFI UDPv4 Protocol instance.
-  @retval EFI_DEVICE_ERROR      An unexpected network or system error occurred and this instance
-                                was not opened.
-  @retval Others                Please examine the function Udp4->Routes(Udp4, FALSE, &mZeroIp4Addr, &mZeroIp4Addr, Gateway) returns.
-
-**/
-EFI_STATUS
-PxeBcConfigureUdpWriteInstance (
-  IN EFI_UDP4_PROTOCOL  *Udp4,
-  IN EFI_IPv4_ADDRESS   *StationIp,
-  IN EFI_IPv4_ADDRESS   *SubnetMask,
-  IN EFI_IPv4_ADDRESS   *Gateway,
-  IN OUT UINT16         *SrcPort,
-  IN     UINT8          Ttl,
-  IN     UINT8          ToS
-  );
-
-
-/**
   This function is to display the IPv4 address.
 
   @param[in]  Ip        The pointer to the IPv4 address.
