@@ -266,7 +266,7 @@ typedef struct {
 VOID
 PxeBcInitSeedPacket (
   IN EFI_DHCP4_PACKET  *Seed,
-  IN EFI_UDP4_PROTOCOL *Udp4
+  IN EFI_DHCP4_PROTOCOL *Dhcp4
   );
 
 
@@ -298,6 +298,17 @@ PxeBcParseCachedDhcpPacket (
 **/
 EFI_STATUS
 PxeBcCheckSelectedOffer (
+  IN PXEBC_PRIVATE_DATA  *Private
+  );
+
+EFI_STATUS
+PxeBcCacheDhcpOffer (
+  IN PXEBC_PRIVATE_DATA  *Private,
+  IN EFI_DHCP4_PACKET    *RcvdOffer
+  );
+
+VOID
+PxeBcSelectOffer (
   IN PXEBC_PRIVATE_DATA  *Private
   );
 
