@@ -110,82 +110,6 @@ PxeBcDestroyIp4Children (
 {
   ASSERT (Private != NULL);
 
-  if (Private->ArpChild != NULL) {
-    //
-    // Close Arp for PxeBc->Arp and destroy the instance.
-    //
-    gBS->CloseProtocol (
-           Private->ArpChild,
-           &gEfiArpProtocolGuid,
-           This->DriverBindingHandle,
-           Private->Controller
-           );
-
-    NetLibDestroyServiceChild (
-      Private->Controller,
-      This->DriverBindingHandle,
-      &gEfiArpServiceBindingProtocolGuid,
-      Private->ArpChild
-      );
-  }
-
-  if (Private->Ip4Child != NULL) {
-    //
-    // Close Ip4 for background ICMP error message and destroy the instance.
-    //
-    gBS->CloseProtocol (
-           Private->Ip4Child,
-           &gEfiIp4ProtocolGuid,
-           This->DriverBindingHandle,
-           Private->Controller
-           );
-
-    NetLibDestroyServiceChild (
-      Private->Controller,
-      This->DriverBindingHandle,
-      &gEfiIp4ServiceBindingProtocolGuid,
-      Private->Ip4Child
-      );
-  }
-
-  if (Private->Udp4WriteChild != NULL) {
-    //
-    // Close Udp4 for PxeBc->UdpWrite and destroy the instance.
-    //
-    gBS->CloseProtocol (
-           Private->Udp4WriteChild,
-           &gEfiUdp4ProtocolGuid,
-           This->DriverBindingHandle,
-           Private->Controller
-           );
-
-    NetLibDestroyServiceChild (
-      Private->Controller,
-      This->DriverBindingHandle,
-      &gEfiUdp4ServiceBindingProtocolGuid,
-      Private->Udp4WriteChild
-      );
-  }
-
-  if (Private->Udp4ReadChild != NULL) {
-    //
-    // Close Udp4 for PxeBc->UdpRead and destroy the instance.
-    //
-    gBS->CloseProtocol (
-           Private->Udp4ReadChild,
-           &gEfiUdp4ProtocolGuid,
-           This->DriverBindingHandle,
-           Private->Controller
-           );
-
-    NetLibDestroyServiceChild (
-      Private->Controller,
-      This->DriverBindingHandle,
-      &gEfiUdp4ServiceBindingProtocolGuid,
-      Private->Udp4ReadChild
-      );
-  }
-
   if (Private->Mtftp4Child != NULL) {
     //
     // Close Mtftp4 for PxeBc->Mtftp4 and destroy the instance.
@@ -268,10 +192,6 @@ PxeBcDestroyIp4Children (
     FreePool (Private->Ip4Nic);
   }
 
-  Private->ArpChild       = NULL;
-  Private->Ip4Child       = NULL;
-  Private->Udp4WriteChild = NULL;
-  Private->Udp4ReadChild  = NULL;
   Private->Mtftp4Child    = NULL;
   Private->Dhcp4Child     = NULL;
   Private->Ip4Nic         = NULL;
@@ -557,7 +477,7 @@ PxeBcCreateIp4Children (
   EFI_PXE_BASE_CODE_MODE       *Mode;
   EFI_UDP4_CONFIG_DATA         *Udp4CfgData;
   EFI_IP4_CONFIG_DATA          *Ip4CfgData;
-  EFI_IP4_MODE_DATA            Ip4ModeData;
+  // EFI_IP4_MODE_DATA            Ip4ModeData;
   PXEBC_PRIVATE_PROTOCOL       *Id;
   EFI_SIMPLE_NETWORK_PROTOCOL  *Snp;
 
@@ -578,6 +498,7 @@ PxeBcCreateIp4Children (
              &Private->Dhcp4Child
              );
   if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDriverBindingStart: Failed to create DHCP child: %r\n", Status));
     goto ON_ERROR;
   }
 
@@ -590,20 +511,54 @@ PxeBcCreateIp4Children (
                   EFI_OPEN_PROTOCOL_BY_DRIVER
                   );
   if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDriverBindingStart: Failed to open DHCP protocol: %r\n", Status));
     goto ON_ERROR;
   }
+
+  Private->Ip4MaxPacketSize = PXEBC_CACHED_DHCP4_PACKET_MAX_SIZE;
 
   //
   // Create Mtftp4 child and open Mtftp4 protocol for PxeBc->Mtftp.
   //
-  Status = NetLibCreateServiceChild (
-             ControllerHandle,
-             This->DriverBindingHandle,
-             &gEfiMtftp4ServiceBindingProtocolGuid,
-             &Private->Mtftp4Child
-             );
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
+{
+    EFI_HANDLE    Buffer[2];
+    UINTN         BufferSize;
+    EFI_SERVICE_BINDING_PROTOCOL  *MtftpSb;
+
+    BufferSize = sizeof(Buffer);
+
+    Status = gBS->LocateHandle (
+                    ByProtocol,
+                    &gEfiMtftp4ServiceBindingProtocolGuid,
+                    NULL,
+                    &BufferSize,
+                    Buffer
+                    );
+
+    ASSERT_EFI_ERROR (Status);
+    ASSERT (BufferSize == sizeof(EFI_HANDLE));
+
+    MtftpSb = NULL;
+
+    Status = gBS->OpenProtocol (
+                    Buffer[0],
+                    &gEfiMtftp4ServiceBindingProtocolGuid,
+                    &MtftpSb,
+                    This->DriverBindingHandle,
+                    Buffer[0],
+                    EFI_OPEN_PROTOCOL_GET_PROTOCOL
+                    );
+
+    ASSERT_EFI_ERROR (Status);
+    ASSERT (MtftpSb != NULL);
+
+    Status = MtftpSb->CreateChild (
+                        MtftpSb,
+                        &Private->Mtftp4Child
+                        );
+
+    ASSERT_EFI_ERROR (Status);
+    ASSERT (Private->Mtftp4Child != NULL);
   }
 
   Status = gBS->OpenProtocol (
@@ -618,115 +573,27 @@ PxeBcCreateIp4Children (
     goto ON_ERROR;
   }
 
-  //
-  // Create Udp4 child and open Udp4 protocol for PxeBc->UdpRead.
-  //
-  Status = NetLibCreateServiceChild (
-             ControllerHandle,
-             This->DriverBindingHandle,
-             &gEfiUdp4ServiceBindingProtocolGuid,
-             &Private->Udp4ReadChild
-             );
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
-  }
-
-  Status = gBS->OpenProtocol (
-                  Private->Udp4ReadChild,
-                  &gEfiUdp4ProtocolGuid,
-                  (VOID **)&Private->Udp4Read,
-                  This->DriverBindingHandle,
-                  ControllerHandle,
-                  EFI_OPEN_PROTOCOL_BY_DRIVER
+  Status = gBS->LocateProtocol (
+                  &gEfiMpSocketProtocolGuid,
+                  NULL,
+                  (VOID**) &Private->Sockets
                   );
+
+  DEBUG ((EFI_D_INFO, "[PXE BC] Opening LWIP socket protocol: %r\n", Status));
+
   if (EFI_ERROR (Status)) {
     goto ON_ERROR;
   }
 
   //
-  // Create Udp4 child and open Udp4 protocol for PxeBc->UdpWrite.
+  // Create socket for PxeBc->UdpRead()
   //
-  Status = NetLibCreateServiceChild (
-             ControllerHandle,
-             This->DriverBindingHandle,
-             &gEfiUdp4ServiceBindingProtocolGuid,
-             &Private->Udp4WriteChild
-             );
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
-  }
-
-  Status = gBS->OpenProtocol (
-                  Private->Udp4WriteChild,
-                  &gEfiUdp4ProtocolGuid,
-                  (VOID **)&Private->Udp4Write,
-                  This->DriverBindingHandle,
-                  ControllerHandle,
-                  EFI_OPEN_PROTOCOL_BY_DRIVER
-                  );
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
-  }
+  Private->InputSocket = -1;
 
   //
-  // Create Arp child and open Arp protocol for PxeBc->Arp.
+  // Do not create socket for PxeBc->UdpWrite() yet.
   //
-  Status = NetLibCreateServiceChild (
-             ControllerHandle,
-             This->DriverBindingHandle,
-             &gEfiArpServiceBindingProtocolGuid,
-             &Private->ArpChild
-             );
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
-  }
-
-  Status = gBS->OpenProtocol (
-                  Private->ArpChild,
-                  &gEfiArpProtocolGuid,
-                  (VOID **)&Private->Arp,
-                  This->DriverBindingHandle,
-                  ControllerHandle,
-                  EFI_OPEN_PROTOCOL_BY_DRIVER
-                  );
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
-  }
-
-  //
-  // Create Ip4 child and open Ip4 protocol for background ICMP packets.
-  //
-  Status = NetLibCreateServiceChild (
-             ControllerHandle,
-             This->DriverBindingHandle,
-             &gEfiIp4ServiceBindingProtocolGuid,
-             &Private->Ip4Child
-             );
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
-  }
-
-  Status = gBS->OpenProtocol (
-                  Private->Ip4Child,
-                  &gEfiIp4ProtocolGuid,
-                  (VOID **)&Private->Ip4,
-                  This->DriverBindingHandle,
-                  ControllerHandle,
-                  EFI_OPEN_PROTOCOL_BY_DRIVER
-                  );
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
-  }
-
-  //
-  // Get max packet size from Ip4 to calculate block size for Tftp later.
-  //
-  Status = Private->Ip4->GetModeData (Private->Ip4, &Ip4ModeData, NULL, NULL);
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
-  }
-
-  Private->Ip4MaxPacketSize = Ip4ModeData.MaxPacketSize;
+  Private->OutputSocket   = -1;
 
   Private->Ip4Nic = AllocateZeroPool (sizeof (PXEBC_VIRTUAL_NIC));
   if (Private->Ip4Nic == NULL) {
@@ -735,18 +602,6 @@ PxeBcCreateIp4Children (
 
   Private->Ip4Nic->Private   = Private;
   Private->Ip4Nic->Signature = PXEBC_VIRTUAL_NIC_SIGNATURE;
-
-  //
-  // Locate Ip4->Ip4Config2 and store it for set IPv4 Policy.
-  //
-  Status = gBS->HandleProtocol (
-                  ControllerHandle,
-                  &gEfiIp4Config2ProtocolGuid,
-                  (VOID **)&Private->Ip4Config2
-                  );
-  if (EFI_ERROR (Status)) {
-    goto ON_ERROR;
-  }
 
   //
   // Create a device path node for Ipv4 virtual nic, and append it.
@@ -786,6 +641,7 @@ PxeBcCreateIp4Children (
                   NULL
                   );
   if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDriverBindingStart: Failed to install PXE BC: %r\n", Status));
     goto ON_ERROR;
   }
 
@@ -1326,16 +1182,6 @@ PxeBcSupported (
                   ControllerHandle,
                   EFI_OPEN_PROTOCOL_TEST_PROTOCOL
                   );
-  if (!EFI_ERROR (Status)) {
-    Status = gBS->OpenProtocol (
-                    ControllerHandle,
-                    MtftpServiceBindingGuid,
-                    NULL,
-                    This->DriverBindingHandle,
-                    ControllerHandle,
-                    EFI_OPEN_PROTOCOL_TEST_PROTOCOL
-                    );
-  }
 
   //
   // It's unsupported case if IP stack are not ready.
@@ -1376,6 +1222,8 @@ PxeBcStart (
   EFI_STATUS              Status;
   PXEBC_PRIVATE_PROTOCOL  *Id;
   BOOLEAN                 FirstStart;
+
+  DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDriverBindingStart\n"));
 
   FirstStart = FALSE;
   Status     = gBS->OpenProtocol (
@@ -1444,6 +1292,7 @@ PxeBcStart (
                     EFI_OPEN_PROTOCOL_GET_PROTOCOL
                     );
     if (EFI_ERROR (Status)) {
+      DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDriverBindingStart: NII not found.\n"));
       Private->Nii = NULL;
     }
 

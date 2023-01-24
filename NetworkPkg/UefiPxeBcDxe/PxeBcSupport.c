@@ -57,29 +57,21 @@ PxeBcFlushStationIp (
   } else {
     if (StationIp != NULL) {
       //
-      // Reconfigure the ARP instance with station Ip address.
-      //
-      ArpConfigData.SwAddressType   = 0x0800;
-      ArpConfigData.SwAddressLength = (UINT8)sizeof (EFI_IPv4_ADDRESS);
-      ArpConfigData.StationAddress  = StationIp;
-
-      Private->Arp->Configure (Private->Arp, NULL);
-      Private->Arp->Configure (Private->Arp, &ArpConfigData);
-
-      //
       // Overwrite Udp4CfgData/Ip4CfgData StationAddress.
       //
-      CopyMem (&Private->Udp4CfgData.StationAddress, StationIp, sizeof (EFI_IPv4_ADDRESS));
-      CopyMem (&Private->Ip4CfgData.StationAddress, StationIp, sizeof (EFI_IPv4_ADDRESS));
+      CopyMem (&Private->StationIp, StationIp, sizeof (EFI_IPv4_ADDRESS));
+      CopyMem (&Mode->StationIp, StationIp, sizeof (EFI_IPv4_ADDRESS));
     }
 
     if (SubnetMask != NULL) {
       //
       // Overwrite Udp4CfgData/Ip4CfgData SubnetMask.
       //
-      CopyMem (&Private->Udp4CfgData.SubnetMask, SubnetMask, sizeof (EFI_IPv4_ADDRESS));
-      CopyMem (&Private->Ip4CfgData.SubnetMask, SubnetMask, sizeof (EFI_IPv4_ADDRESS));
+      CopyMem (&Private->SubnetMask, SubnetMask, sizeof (EFI_IPv4_ADDRESS));
+      CopyMem (&Mode->SubnetMask, SubnetMask, sizeof (EFI_IPv4_ADDRESS));
     }
+
+    Private->IsAddressOk = TRUE;
 
     if ((StationIp != NULL) && (SubnetMask != NULL)) {
       //
@@ -89,21 +81,6 @@ PxeBcFlushStationIp (
       Mode->RouteTable[0].IpAddr.Addr[0]     = StationIp->Addr[0] & SubnetMask->Addr[0];
       Mode->RouteTable[0].SubnetMask.Addr[0] = SubnetMask->Addr[0];
       Mode->RouteTable[0].GwAddr.Addr[0]     = 0;
-    }
-
-    if ((StationIp != NULL) || (SubnetMask != NULL)) {
-      //
-      // Reconfigure the Ip4 instance to capture background ICMP packets with new station Ip address.
-      //
-      Private->Ip4->Cancel (Private->Ip4, &Private->IcmpToken);
-      Private->Ip4->Configure (Private->Ip4, NULL);
-
-      Status = Private->Ip4->Configure (Private->Ip4, &Private->Ip4CfgData);
-      if (EFI_ERROR (Status)) {
-        goto ON_EXIT;
-      }
-
-      Status = Private->Ip4->Receive (Private->Ip4, &Private->IcmpToken);
     }
   }
 
@@ -168,203 +145,203 @@ PxeBcCheckArpCache (
   return FALSE;
 }
 
-/**
-  Update the arp cache periodically.
+// /**
+//   Update the arp cache periodically.
 
-  @param  Event              The pointer to EFI_PXE_BC_PROTOCOL.
-  @param  Context            Context of the timer event.
+//   @param  Event              The pointer to EFI_PXE_BC_PROTOCOL.
+//   @param  Context            Context of the timer event.
 
-**/
-VOID
-EFIAPI
-PxeBcArpCacheUpdate (
-  IN EFI_EVENT  Event,
-  IN VOID       *Context
-  )
-{
-  PXEBC_PRIVATE_DATA      *Private;
-  EFI_PXE_BASE_CODE_MODE  *Mode;
-  EFI_ARP_FIND_DATA       *ArpEntry;
-  UINT32                  EntryLength;
-  UINT32                  EntryCount;
-  UINT32                  Index;
-  EFI_STATUS              Status;
+// **/
+// VOID
+// EFIAPI
+// PxeBcArpCacheUpdate (
+//   IN EFI_EVENT  Event,
+//   IN VOID       *Context
+//   )
+// {
+//   PXEBC_PRIVATE_DATA      *Private;
+//   EFI_PXE_BASE_CODE_MODE  *Mode;
+//   EFI_ARP_FIND_DATA       *ArpEntry;
+//   UINT32                  EntryLength;
+//   UINT32                  EntryCount;
+//   UINT32                  Index;
+//   EFI_STATUS              Status;
 
-  Private = (PXEBC_PRIVATE_DATA *)Context;
-  Mode    = Private->PxeBc.Mode;
+//   Private = (PXEBC_PRIVATE_DATA *)Context;
+//   Mode    = Private->PxeBc.Mode;
 
-  ASSERT (!Mode->UsingIpv6);
+//   ASSERT (!Mode->UsingIpv6);
 
-  //
-  // Get the current Arp cache from Arp driver.
-  //
-  Status = Private->Arp->Find (
-                           Private->Arp,
-                           TRUE,
-                           NULL,
-                           &EntryLength,
-                           &EntryCount,
-                           &ArpEntry,
-                           TRUE
-                           );
-  if (EFI_ERROR (Status)) {
-    return;
-  }
+//   //
+//   // Get the current Arp cache from Arp driver.
+//   //
+//   Status = Private->Arp->Find (
+//                            Private->Arp,
+//                            TRUE,
+//                            NULL,
+//                            &EntryLength,
+//                            &EntryCount,
+//                            &ArpEntry,
+//                            TRUE
+//                            );
+//   if (EFI_ERROR (Status)) {
+//     return;
+//   }
 
-  //
-  // Update the Arp cache in mode data.
-  //
-  Mode->ArpCacheEntries = MIN (EntryCount, EFI_PXE_BASE_CODE_MAX_ARP_ENTRIES);
+//   //
+//   // Update the Arp cache in mode data.
+//   //
+//   Mode->ArpCacheEntries = MIN (EntryCount, EFI_PXE_BASE_CODE_MAX_ARP_ENTRIES);
 
-  for (Index = 0; Index < Mode->ArpCacheEntries; Index++) {
-    CopyMem (
-      &Mode->ArpCache[Index].IpAddr,
-      ArpEntry + 1,
-      ArpEntry->SwAddressLength
-      );
-    CopyMem (
-      &Mode->ArpCache[Index].MacAddr,
-      (UINT8 *)(ArpEntry + 1) + ArpEntry->SwAddressLength,
-      ArpEntry->HwAddressLength
-      );
-    ArpEntry = (EFI_ARP_FIND_DATA *)((UINT8 *)ArpEntry + EntryLength);
-  }
-}
+//   for (Index = 0; Index < Mode->ArpCacheEntries; Index++) {
+//     CopyMem (
+//       &Mode->ArpCache[Index].IpAddr,
+//       ArpEntry + 1,
+//       ArpEntry->SwAddressLength
+//       );
+//     CopyMem (
+//       &Mode->ArpCache[Index].MacAddr,
+//       (UINT8 *)(ArpEntry + 1) + ArpEntry->SwAddressLength,
+//       ArpEntry->HwAddressLength
+//       );
+//     ArpEntry = (EFI_ARP_FIND_DATA *)((UINT8 *)ArpEntry + EntryLength);
+//   }
+// }
 
-/**
-  Notify function to handle the received ICMP message in DPC.
+// /**
+//   Notify function to handle the received ICMP message in DPC.
 
-  @param  Context               The PXEBC private data.
+//   @param  Context               The PXEBC private data.
 
-**/
-VOID
-EFIAPI
-PxeBcIcmpErrorDpcHandle (
-  IN VOID  *Context
-  )
-{
-  EFI_STATUS              Status;
-  EFI_IP4_RECEIVE_DATA    *RxData;
-  EFI_IP4_PROTOCOL        *Ip4;
-  PXEBC_PRIVATE_DATA      *Private;
-  EFI_PXE_BASE_CODE_MODE  *Mode;
-  UINT8                   Type;
-  UINTN                   Index;
-  UINT32                  CopiedLen;
-  UINT8                   *IcmpError;
+// **/
+// VOID
+// EFIAPI
+// PxeBcIcmpErrorDpcHandle (
+//   IN VOID  *Context
+//   )
+// {
+//   EFI_STATUS              Status;
+//   EFI_IP4_RECEIVE_DATA    *RxData;
+//   EFI_IP4_PROTOCOL        *Ip4;
+//   PXEBC_PRIVATE_DATA      *Private;
+//   EFI_PXE_BASE_CODE_MODE  *Mode;
+//   UINT8                   Type;
+//   UINTN                   Index;
+//   UINT32                  CopiedLen;
+//   UINT8                   *IcmpError;
 
-  Private = (PXEBC_PRIVATE_DATA *)Context;
-  Mode    = &Private->Mode;
-  Status  = Private->IcmpToken.Status;
-  RxData  = Private->IcmpToken.Packet.RxData;
-  Ip4     = Private->Ip4;
+//   Private = (PXEBC_PRIVATE_DATA *)Context;
+//   Mode    = &Private->Mode;
+//   Status  = Private->IcmpToken.Status;
+//   RxData  = Private->IcmpToken.Packet.RxData;
+//   Ip4     = Private->Ip4;
 
-  ASSERT (!Mode->UsingIpv6);
+//   ASSERT (!Mode->UsingIpv6);
 
-  if (Status == EFI_ABORTED) {
-    //
-    // It's triggered by user cancellation.
-    //
-    return;
-  }
+//   if (Status == EFI_ABORTED) {
+//     //
+//     // It's triggered by user cancellation.
+//     //
+//     return;
+//   }
 
-  if (RxData == NULL) {
-    goto ON_EXIT;
-  }
+//   if (RxData == NULL) {
+//     goto ON_EXIT;
+//   }
 
-  if (Status != EFI_ICMP_ERROR) {
-    //
-    // The return status should be recognized as EFI_ICMP_ERROR.
-    //
-    goto ON_RECYCLE;
-  }
+//   if (Status != EFI_ICMP_ERROR) {
+//     //
+//     // The return status should be recognized as EFI_ICMP_ERROR.
+//     //
+//     goto ON_RECYCLE;
+//   }
 
-  if ((EFI_IP4 (RxData->Header->SourceAddress) != 0) &&
-      (NTOHL (Mode->SubnetMask.Addr[0]) != 0) &&
-      IP4_NET_EQUAL (NTOHL (Mode->StationIp.Addr[0]), EFI_NTOHL (RxData->Header->SourceAddress), NTOHL (Mode->SubnetMask.Addr[0])) &&
-      !NetIp4IsUnicast (EFI_NTOHL (RxData->Header->SourceAddress), NTOHL (Mode->SubnetMask.Addr[0])))
-  {
-    //
-    // The source address of the received packet should be a valid unicast address.
-    //
-    goto ON_RECYCLE;
-  }
+//   if ((EFI_IP4 (RxData->Header->SourceAddress) != 0) &&
+//       (NTOHL (Mode->SubnetMask.Addr[0]) != 0) &&
+//       IP4_NET_EQUAL (NTOHL (Mode->StationIp.Addr[0]), EFI_NTOHL (RxData->Header->SourceAddress), NTOHL (Mode->SubnetMask.Addr[0])) &&
+//       !NetIp4IsUnicast (EFI_NTOHL (RxData->Header->SourceAddress), NTOHL (Mode->SubnetMask.Addr[0])))
+//   {
+//     //
+//     // The source address of the received packet should be a valid unicast address.
+//     //
+//     goto ON_RECYCLE;
+//   }
 
-  if (!EFI_IP4_EQUAL (&RxData->Header->DestinationAddress, &Mode->StationIp.v4)) {
-    //
-    // The destination address of the received packet should be equal to the host address.
-    //
-    goto ON_RECYCLE;
-  }
+//   if (!EFI_IP4_EQUAL (&RxData->Header->DestinationAddress, &Mode->StationIp.v4)) {
+//     //
+//     // The destination address of the received packet should be equal to the host address.
+//     //
+//     goto ON_RECYCLE;
+//   }
 
-  //
-  // The protocol has been configured to only receive ICMP packet.
-  //
-  ASSERT (RxData->Header->Protocol == EFI_IP_PROTO_ICMP);
+//   //
+//   // The protocol has been configured to only receive ICMP packet.
+//   //
+//   ASSERT (RxData->Header->Protocol == EFI_IP_PROTO_ICMP);
 
-  Type = *((UINT8 *)RxData->FragmentTable[0].FragmentBuffer);
+//   Type = *((UINT8 *)RxData->FragmentTable[0].FragmentBuffer);
 
-  if ((Type != ICMP_DEST_UNREACHABLE) &&
-      (Type != ICMP_SOURCE_QUENCH) &&
-      (Type != ICMP_REDIRECT) &&
-      (Type != ICMP_TIME_EXCEEDED) &&
-      (Type != ICMP_PARAMETER_PROBLEM))
-  {
-    //
-    // The type of the receveid ICMP message should be ICMP_ERROR_MESSAGE.
-    //
-    goto ON_RECYCLE;
-  }
+//   if ((Type != ICMP_DEST_UNREACHABLE) &&
+//       (Type != ICMP_SOURCE_QUENCH) &&
+//       (Type != ICMP_REDIRECT) &&
+//       (Type != ICMP_TIME_EXCEEDED) &&
+//       (Type != ICMP_PARAMETER_PROBLEM))
+//   {
+//     //
+//     // The type of the receveid ICMP message should be ICMP_ERROR_MESSAGE.
+//     //
+//     goto ON_RECYCLE;
+//   }
 
-  //
-  // Copy the right ICMP error message into mode data.
-  //
-  CopiedLen = 0;
-  IcmpError = (UINT8 *)&Mode->IcmpError;
+//   //
+//   // Copy the right ICMP error message into mode data.
+//   //
+//   CopiedLen = 0;
+//   IcmpError = (UINT8 *)&Mode->IcmpError;
 
-  for (Index = 0; Index < RxData->FragmentCount; Index++) {
-    CopiedLen += RxData->FragmentTable[Index].FragmentLength;
-    if (CopiedLen <= sizeof (EFI_PXE_BASE_CODE_ICMP_ERROR)) {
-      CopyMem (
-        IcmpError,
-        RxData->FragmentTable[Index].FragmentBuffer,
-        RxData->FragmentTable[Index].FragmentLength
-        );
-    } else {
-      CopyMem (
-        IcmpError,
-        RxData->FragmentTable[Index].FragmentBuffer,
-        CopiedLen - sizeof (EFI_PXE_BASE_CODE_ICMP_ERROR)
-        );
-    }
+//   for (Index = 0; Index < RxData->FragmentCount; Index++) {
+//     CopiedLen += RxData->FragmentTable[Index].FragmentLength;
+//     if (CopiedLen <= sizeof (EFI_PXE_BASE_CODE_ICMP_ERROR)) {
+//       CopyMem (
+//         IcmpError,
+//         RxData->FragmentTable[Index].FragmentBuffer,
+//         RxData->FragmentTable[Index].FragmentLength
+//         );
+//     } else {
+//       CopyMem (
+//         IcmpError,
+//         RxData->FragmentTable[Index].FragmentBuffer,
+//         CopiedLen - sizeof (EFI_PXE_BASE_CODE_ICMP_ERROR)
+//         );
+//     }
 
-    IcmpError += CopiedLen;
-  }
+//     IcmpError += CopiedLen;
+//   }
 
-ON_RECYCLE:
-  gBS->SignalEvent (RxData->RecycleSignal);
+// ON_RECYCLE:
+//   gBS->SignalEvent (RxData->RecycleSignal);
 
-ON_EXIT:
-  Private->IcmpToken.Status = EFI_NOT_READY;
-  Ip4->Receive (Ip4, &Private->IcmpToken);
-}
+// ON_EXIT:
+//   Private->IcmpToken.Status = EFI_NOT_READY;
+//   Ip4->Receive (Ip4, &Private->IcmpToken);
+// }
 
-/**
-  Callback function to update the latest ICMP6 error message.
+// /**
+//   Callback function to update the latest ICMP6 error message.
 
-  @param  Event                 The event signalled.
-  @param  Context               The context passed in using the event notifier.
+//   @param  Event                 The event signalled.
+//   @param  Context               The context passed in using the event notifier.
 
-**/
-VOID
-EFIAPI
-PxeBcIcmpErrorUpdate (
-  IN EFI_EVENT  Event,
-  IN VOID       *Context
-  )
-{
-  QueueDpc (TPL_CALLBACK, PxeBcIcmpErrorDpcHandle, Context);
-}
+// **/
+// VOID
+// EFIAPI
+// PxeBcIcmpErrorUpdate (
+//   IN EFI_EVENT  Event,
+//   IN VOID       *Context
+//   )
+// {
+//   QueueDpc (TPL_CALLBACK, PxeBcIcmpErrorDpcHandle, Context);
+// }
 
 /**
   Notify function to handle the received ICMP6 message in DPC.
@@ -495,78 +472,79 @@ PxeBcIcmp6ErrorUpdate (
   IN VOID       *Context
   )
 {
-  QueueDpc (TPL_CALLBACK, PxeBcIcmp6ErrorDpcHandle, Context);
+  // Do nothing...
+  // QueueDpc (TPL_CALLBACK, PxeBcIcmp6ErrorDpcHandle, Context);
 }
 
-/**
-  This function is to configure a UDPv4 instance for UdpWrite.
+// /**
+//   This function is to configure a UDPv4 instance for UdpWrite.
 
-  @param[in]       Udp4                 The pointer to EFI_UDP4_PROTOCOL.
-  @param[in]       StationIp            The pointer to the station address.
-  @param[in]       SubnetMask           The pointer to the subnet mask.
-  @param[in]       Gateway              The pointer to the gateway address.
-  @param[in, out]  SrcPort              The pointer to the source port.
-  @param[in]       DoNotFragment        If TRUE, fragment is not enabled.
-                                        Otherwise, fragment is enabled.
-  @param[in]       Ttl                  The time to live field of the IP header.
-  @param[in]       ToS                  The type of service field of the IP header.
+//   @param[in]       Udp4                 The pointer to EFI_UDP4_PROTOCOL.
+//   @param[in]       StationIp            The pointer to the station address.
+//   @param[in]       SubnetMask           The pointer to the subnet mask.
+//   @param[in]       Gateway              The pointer to the gateway address.
+//   @param[in, out]  SrcPort              The pointer to the source port.
+//   @param[in]       DoNotFragment        If TRUE, fragment is not enabled.
+//                                         Otherwise, fragment is enabled.
+//   @param[in]       Ttl                  The time to live field of the IP header.
+//   @param[in]       ToS                  The type of service field of the IP header.
 
-  @retval          EFI_SUCCESS          Successfully configured this instance.
-  @retval          Others               Failed to configure this instance.
+//   @retval          EFI_SUCCESS          Successfully configured this instance.
+//   @retval          Others               Failed to configure this instance.
 
-**/
-EFI_STATUS
-PxeBcConfigUdp4Write (
-  IN     EFI_UDP4_PROTOCOL  *Udp4,
-  IN     EFI_IPv4_ADDRESS   *StationIp,
-  IN     EFI_IPv4_ADDRESS   *SubnetMask,
-  IN     EFI_IPv4_ADDRESS   *Gateway,
-  IN OUT UINT16             *SrcPort,
-  IN     BOOLEAN            DoNotFragment,
-  IN     UINT8              Ttl,
-  IN     UINT8              ToS
-  )
-{
-  EFI_UDP4_CONFIG_DATA  Udp4CfgData;
-  EFI_STATUS            Status;
+// **/
+// EFI_STATUS
+// PxeBcConfigUdp4Write (
+//   IN     EFI_UDP4_PROTOCOL  *Udp4,
+//   IN     EFI_IPv4_ADDRESS   *StationIp,
+//   IN     EFI_IPv4_ADDRESS   *SubnetMask,
+//   IN     EFI_IPv4_ADDRESS   *Gateway,
+//   IN OUT UINT16             *SrcPort,
+//   IN     BOOLEAN            DoNotFragment,
+//   IN     UINT8              Ttl,
+//   IN     UINT8              ToS
+//   )
+// {
+//   EFI_UDP4_CONFIG_DATA  Udp4CfgData;
+//   EFI_STATUS            Status;
 
-  ZeroMem (&Udp4CfgData, sizeof (Udp4CfgData));
+//   ZeroMem (&Udp4CfgData, sizeof (Udp4CfgData));
 
-  Udp4CfgData.TransmitTimeout    = PXEBC_DEFAULT_LIFETIME;
-  Udp4CfgData.ReceiveTimeout     = PXEBC_DEFAULT_LIFETIME;
-  Udp4CfgData.TypeOfService      = ToS;
-  Udp4CfgData.TimeToLive         = Ttl;
-  Udp4CfgData.AllowDuplicatePort = TRUE;
-  Udp4CfgData.DoNotFragment      = DoNotFragment;
+//   Udp4CfgData.TransmitTimeout    = PXEBC_DEFAULT_LIFETIME;
+//   Udp4CfgData.ReceiveTimeout     = PXEBC_DEFAULT_LIFETIME;
+//   Udp4CfgData.TypeOfService      = ToS;
+//   Udp4CfgData.TimeToLive         = Ttl;
+//   Udp4CfgData.AllowDuplicatePort = TRUE;
+//   Udp4CfgData.DoNotFragment      = DoNotFragment;
 
-  CopyMem (&Udp4CfgData.StationAddress, StationIp, sizeof (*StationIp));
-  CopyMem (&Udp4CfgData.SubnetMask, SubnetMask, sizeof (*SubnetMask));
+//   CopyMem (&Udp4CfgData.StationAddress, StationIp, sizeof (*StationIp));
+//   CopyMem (&Udp4CfgData.SubnetMask, SubnetMask, sizeof (*SubnetMask));
 
-  Udp4CfgData.StationPort = *SrcPort;
+//   Udp4CfgData.StationPort = *SrcPort;
 
-  //
-  // Reset the UDPv4 instance.
-  //
-  Udp4->Configure (Udp4, NULL);
+//   //
+//   // Reset the UDPv4 instance.
+//   //
+//   Udp4->Configure (Udp4, NULL);
 
-  Status = Udp4->Configure (Udp4, &Udp4CfgData);
-  if (!EFI_ERROR (Status) && !EFI_IP4_EQUAL (Gateway, &mZeroIp4Addr)) {
-    //
-    // The basic configuration is OK, need to add the default route entry
-    //
-    Status = Udp4->Routes (Udp4, FALSE, &mZeroIp4Addr, &mZeroIp4Addr, Gateway);
-    if (EFI_ERROR (Status)) {
-      Udp4->Configure (Udp4, NULL);
-    }
-  }
+//   Status = Udp4->Configure (Udp4, &Udp4CfgData);
+//   if (!EFI_ERROR (Status) && !EFI_IP4_EQUAL (Gateway, &mZeroIp4Addr)) {
+//     //
+//     // The basic configuration is OK, need to add the default route entry
+//     //
+//     Status = Udp4->Routes (Udp4, FALSE, &mZeroIp4Addr, &mZeroIp4Addr, Gateway);
+//     if (EFI_ERROR (Status)) {
+//       Udp4->Configure (Udp4, NULL);
+//     }
+//   }
 
-  if (!EFI_ERROR (Status) && (*SrcPort == 0)) {
-    Udp4->GetModeData (Udp4, &Udp4CfgData, NULL, NULL, NULL);
-    *SrcPort = Udp4CfgData.StationPort;
-  }
+//   if (!EFI_ERROR (Status) && (*SrcPort == 0)) {
+//     Udp4->GetModeData (Udp4, &Udp4CfgData, NULL, NULL, NULL);
+//     *SrcPort = Udp4CfgData.StationPort;
+//   }
 
-  return Status;
-}
+//   return Status;
+// }
 
 /**
   This function is to configure a UDPv6 instance for UdpWrite.

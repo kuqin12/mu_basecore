@@ -1208,15 +1208,16 @@ PxeBcTftpWriteFile (
              BufferSize
              );
   } else {
-    return PxeBcMtftp4WriteFile (
-             Private,
-             (EFI_MTFTP4_CONFIG_DATA *)Config,
-             Filename,
-             Overwrite,
-             BlockSize,
-             BufferPtr,
-             BufferSize
-             );
+    // return PxeBcMtftp4WriteFile (
+    //          Private,
+    //          (EFI_MTFTP4_CONFIG_DATA *)Config,
+    //          Filename,
+    //          Overwrite,
+    //          BlockSize,
+    //          BufferPtr,
+    //          BufferSize
+    //          );
+    return EFI_UNSUPPORTED;
   }
 }
 
@@ -1261,15 +1262,16 @@ PxeBcTftpReadDirectory (
              DontUseBuffer
              );
   } else {
-    return PxeBcMtftp4ReadDirectory (
-             Private,
-             (EFI_MTFTP4_CONFIG_DATA *)Config,
-             Filename,
-             BlockSize,
-             WindowSize,
-             BufferPtr,
-             BufferSize,
-             DontUseBuffer
-             );
+    // return PxeBcMtftp4ReadDirectory (
+    //          Private,
+    //          (EFI_MTFTP4_CONFIG_DATA *)Config,
+    //          Filename,
+    //          BlockSize,
+    //          WindowSize,
+    //          BufferPtr,
+    //          BufferSize,
+    //          DontUseBuffer
+    //          );
+    return EFI_UNSUPPORTED;
   }
 }

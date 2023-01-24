@@ -110,34 +110,34 @@ PxeBcIcmp6ErrorUpdate (
   IN VOID       *Context
   );
 
-/**
-  This function is to configure a UDPv4 instance for UdpWrite.
+// /**
+//   This function is to configure a UDPv4 instance for UdpWrite.
 
-  @param[in]       Udp4                 The pointer to EFI_UDP4_PROTOCOL.
-  @param[in]       StationIp            The pointer to the station address.
-  @param[in]       SubnetMask           The pointer to the subnet mask.
-  @param[in]       Gateway              The pointer to the gateway address.
-  @param[in, out]  SrcPort              The pointer to the source port.
-  @param[in]       DoNotFragment        If TRUE, fragment is not enabled.
-                                        Otherwise, fragment is enabled.
-  @param[in]       Ttl                  The time to live field of the IP header.
-  @param[in]       ToS                  The type of service field of the IP header.
+//   @param[in]       Udp4                 The pointer to EFI_UDP4_PROTOCOL.
+//   @param[in]       StationIp            The pointer to the station address.
+//   @param[in]       SubnetMask           The pointer to the subnet mask.
+//   @param[in]       Gateway              The pointer to the gateway address.
+//   @param[in, out]  SrcPort              The pointer to the source port.
+//   @param[in]       DoNotFragment        If TRUE, fragment is not enabled.
+//                                         Otherwise, fragment is enabled.
+//   @param[in]       Ttl                  The time to live field of the IP header.
+//   @param[in]       ToS                  The type of service field of the IP header.
 
-  @retval          EFI_SUCCESS          Successfully configured this instance.
-  @retval          Others               Failed to configure this instance.
+//   @retval          EFI_SUCCESS          Successfully configured this instance.
+//   @retval          Others               Failed to configure this instance.
 
-**/
-EFI_STATUS
-PxeBcConfigUdp4Write (
-  IN     EFI_UDP4_PROTOCOL  *Udp4,
-  IN     EFI_IPv4_ADDRESS   *StationIp,
-  IN     EFI_IPv4_ADDRESS   *SubnetMask,
-  IN     EFI_IPv4_ADDRESS   *Gateway,
-  IN OUT UINT16             *SrcPort,
-  IN     BOOLEAN            DoNotFragment,
-  IN     UINT8              Ttl,
-  IN     UINT8              ToS
-  );
+// **/
+// EFI_STATUS
+// PxeBcConfigUdp4Write (
+//   IN     EFI_UDP4_PROTOCOL  *Udp4,
+//   IN     EFI_IPv4_ADDRESS   *StationIp,
+//   IN     EFI_IPv4_ADDRESS   *SubnetMask,
+//   IN     EFI_IPv4_ADDRESS   *Gateway,
+//   IN OUT UINT16             *SrcPort,
+//   IN     BOOLEAN            DoNotFragment,
+//   IN     UINT8              Ttl,
+//   IN     UINT8              ToS
+//   );
 
 /**
   This function is to configure a UDPv6 instance for UdpWrite.

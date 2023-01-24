@@ -59,7 +59,6 @@
   MemoryAllocationLib
   DebugLib
   NetLib
-  DpcLib
   DevicePathLib
   PcdLib
 
@@ -94,9 +93,13 @@
   gEfiPxeBaseCodeProtocolGuid                          ## BY_START
   gEfiLoadFileProtocolGuid                             ## BY_START
   gEfiAdapterInformationProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiMpSocketProtocolGuid
 
 [Guids]
   gEfiAdapterInfoUndiIpv6SupportGuid                   ## SOMETIMES_CONSUMES ## GUID
+
+[Depex]
+  gEfiMtftp4ServiceBindingProtocolGuid
 
 [Pcd]
   gEfiNetworkPkgTokenSpaceGuid.PcdTftpBlockSize        ## SOMETIMES_CONSUMES

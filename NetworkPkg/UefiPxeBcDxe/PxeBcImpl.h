@@ -35,6 +35,8 @@
 #include <Protocol/ServiceBinding.h>
 #include <Protocol/DriverBinding.h>
 #include <Protocol/AdapterInformation.h>
+#include <Protocol/ServiceBinding.h>
+#include <Protocol/MpSocket.h>
 
 #include <Library/DebugLib.h>
 #include <Library/BaseMemoryLib.h>
@@ -109,20 +111,32 @@ struct _PXEBC_PRIVATE_DATA {
   PXEBC_VIRTUAL_NIC                            *Ip4Nic;
   PXEBC_VIRTUAL_NIC                            *Ip6Nic;
 
-  EFI_HANDLE                                   ArpChild;
-  EFI_HANDLE                                   Ip4Child;
+  // EFI_HANDLE                                   ArpChild;
+  // EFI_HANDLE                                   Ip4Child;
   EFI_HANDLE                                   Dhcp4Child;
   EFI_HANDLE                                   Mtftp4Child;
-  EFI_HANDLE                                   Udp4ReadChild;
-  EFI_HANDLE                                   Udp4WriteChild;
+  // EFI_HANDLE                                   Udp4ReadChild;
+  // EFI_HANDLE                                   Udp4WriteChild;
+  EFI_LWIP_SOCKET_PROTOCOL                  *Sockets;
+  EFI_LWIP_SOCKET                           InputSocket;
+  EFI_LWIP_SOCKET                           OutputSocket;
 
-  EFI_ARP_PROTOCOL                             *Arp;
-  EFI_IP4_PROTOCOL                             *Ip4;
-  EFI_IP4_CONFIG2_PROTOCOL                     *Ip4Config2;
+  // EFI_ARP_PROTOCOL                             *Arp;
+  // EFI_IP4_PROTOCOL                             *Ip4;
+  // EFI_IP4_CONFIG2_PROTOCOL                     *Ip4Config2;
   EFI_DHCP4_PROTOCOL                           *Dhcp4;
   EFI_MTFTP4_PROTOCOL                          *Mtftp4;
-  EFI_UDP4_PROTOCOL                            *Udp4Read;
-  EFI_UDP4_PROTOCOL                            *Udp4Write;
+  // EFI_UDP4_PROTOCOL                            *Udp4Read;
+  // EFI_UDP4_PROTOCOL                            *Udp4Write;
+  UINT16                                    OutputSocketSrcPort;
+  EFI_IPv4_ADDRESS                          OutputSocketSrcIp;
+
+  //
+  // Receive socket configuration in regards to PxeBc->UdpRead()
+  //
+  UINT16                                    RecvOpFlags;
+  EFI_IPv4_ADDRESS                          RecvDestIp;
+  EFI_PXE_BASE_CODE_UDP_PORT                RecvDestPort;
 
   EFI_HANDLE                                   Ip6Child;
   EFI_HANDLE                                   Dhcp6Child;
@@ -156,7 +170,7 @@ struct _PXEBC_PRIVATE_DATA {
   EFI_IP6_CONFIG_DATA                          Ip6CfgData;
 
   EFI_EVENT                                    UdpTimeOutEvent;
-  EFI_EVENT                                    ArpUpdateEvent;
+  // EFI_EVENT                                    ArpUpdateEvent;
   EFI_IP4_COMPLETION_TOKEN                     IcmpToken;
   EFI_IP6_COMPLETION_TOKEN                     Icmp6Token;
 
