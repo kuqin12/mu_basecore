@@ -381,26 +381,26 @@ PxeBcBuildDhcp4Options (
 **/
 VOID
 PxeBcSeedDhcp4Packet (
-  OUT EFI_DHCP4_PACKET   *Seed,
-  IN  EFI_UDP4_PROTOCOL  *Udp4
+  OUT EFI_DHCP4_PACKET    *Seed,
+  IN  EFI_DHCP4_PROTOCOL  *Dhcp4
   )
 {
-  EFI_SIMPLE_NETWORK_MODE  Mode;
+  EFI_DHCP4_MODE_DATA      Mode;
   EFI_DHCP4_HEADER         *Header;
 
   //
   // Get IfType and HwAddressSize from SNP mode data.
   //
-  Udp4->GetModeData (Udp4, NULL, NULL, NULL, &Mode);
+  Dhcp4->GetModeData (Dhcp4, &Mode);
 
   Seed->Size   = sizeof (EFI_DHCP4_PACKET);
   Seed->Length = sizeof (Seed->Dhcp4);
   Header       = &Seed->Dhcp4.Header;
   ZeroMem (Header, sizeof (EFI_DHCP4_HEADER));
   Header->OpCode    = PXEBC_DHCP4_OPCODE_REQUEST;
-  Header->HwType    = Mode.IfType;
-  Header->HwAddrLen = (UINT8)Mode.HwAddressSize;
-  CopyMem (Header->ClientHwAddr, &Mode.CurrentAddress, Header->HwAddrLen);
+  Header->HwType    = NET_IFTYPE_ETHERNET;
+  Header->HwAddrLen = (UINT8)Mode.ClientMacAddressLength;
+  CopyMem (Header->ClientHwAddr, &Mode.ClientMacAddress, Header->HwAddrLen);
 
   Seed->Dhcp4.Magik     = PXEBC_DHCP4_MAGIC;
   Seed->Dhcp4.Option[0] = DHCP4_TAG_EOP;
@@ -460,6 +460,13 @@ PxeBcParseDhcp4Packet (
   IsPxeOffer          = FALSE;
   FileFieldOverloaded = FALSE;
 
+  DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket()\n"));
+
+  DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): Packet:\n"));
+  for (Index = 0; Index < Cache4->Packet.Offer.Length; Index++) {
+    DEBUG ((EFI_D_INFO, "%02X ", ((UINT8*)(&Cache4->Packet.Offer.Dhcp4))[Index]));
+  }
+
   ZeroMem (Cache4->OptList, sizeof (Cache4->OptList));
   ZeroMem (&Cache4->VendorOpt, sizeof (Cache4->VendorOpt));
 
@@ -471,6 +478,7 @@ PxeBcParseDhcp4Packet (
   // First, try to parse DHCPv4 options from the DHCP optional parameters field.
   //
   for (Index = 0; Index < PXEBC_DHCP4_TAG_INDEX_MAX; Index++) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): PxeBcParseExtendOptions iteration\n"));
     Options[Index] = PxeBcParseDhcp4Options (
                        Offer->Dhcp4.Option,
                        GET_OPTION_BUFFER_LEN (Offer),
@@ -484,10 +492,13 @@ PxeBcParseDhcp4Packet (
   //
   Option = Options[PXEBC_DHCP4_TAG_INDEX_OVERLOAD];
   if (Option != NULL) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): Option != NULL\n"));
     if ((Option->Data[0] & PXEBC_DHCP4_OVERLOAD_FILE) != 0) {
+      DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): Got overload file\n"));
       FileFieldOverloaded = TRUE;
       for (Index = 0; Index < PXEBC_DHCP4_TAG_INDEX_MAX; Index++) {
         if (Options[Index] == NULL) {
+          DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): BootFileName, Options[Index] == NULL\n"));
           Options[Index] = PxeBcParseDhcp4Options (
                              (UINT8 *)Offer->Dhcp4.Header.BootFileName,
                              sizeof (Offer->Dhcp4.Header.BootFileName),
@@ -500,6 +511,7 @@ PxeBcParseDhcp4Packet (
     if ((Option->Data[0] & PXEBC_DHCP4_OVERLOAD_SERVER_NAME) != 0) {
       for (Index = 0; Index < PXEBC_DHCP4_TAG_INDEX_MAX; Index++) {
         if (Options[Index] == NULL) {
+          DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): ServerName, Options[Index] == NULL\n"));
           Options[Index] = PxeBcParseDhcp4Options (
                              (UINT8 *)Offer->Dhcp4.Header.ServerName,
                              sizeof (Offer->Dhcp4.Header.ServerName),
@@ -524,6 +536,7 @@ PxeBcParseDhcp4Packet (
   if ((Option != NULL) && (Option->Length >= 9) &&
       (CompareMem (Option->Data, DEFAULT_CLASS_ID_DATA, 9) == 0))
   {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): IsPxeOffer = TRUE\n"));
     IsPxeOffer = TRUE;
   }
 
@@ -541,6 +554,7 @@ PxeBcParseDhcp4Packet (
   // Otherwise, read from boot file field in DHCP header.
   //
   if (Options[PXEBC_DHCP4_TAG_INDEX_BOOTFILE] != NULL) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): Got bootfile tag\n"));
     //
     // RFC 2132, Section 9.5 does not strictly state Bootfile name (option 67) is null
     // terminated string. So force to append null terminated character at the end of string.
@@ -551,6 +565,7 @@ PxeBcParseDhcp4Packet (
       *Ptr8 = '\0';
     }
   } else if (!FileFieldOverloaded && (Offer->Dhcp4.Header.BootFileName[0] != 0)) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): Header got BootFileName\n"));
     //
     // If the bootfile is not present and bootfilename is present in DHCPv4 packet, just parse it.
     // Do not count dhcp option header here, or else will destroy the serverhostname.
@@ -565,6 +580,7 @@ PxeBcParseDhcp4Packet (
   //
   Option = Options[PXEBC_DHCP4_TAG_INDEX_MSG_TYPE];
   if ((Option == NULL) || (Option->Data[0] == 0)) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): Got tag index msg type\n"));
     //
     // It's a Bootp offer.
     //
@@ -575,6 +591,7 @@ PxeBcParseDhcp4Packet (
       //
       // If the Bootp offer without bootfilename, discard it.
       //
+      DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): BOOTP w/o bootfilename\n"));
       return EFI_DEVICE_ERROR;
     }
   } else {
@@ -583,21 +600,25 @@ PxeBcParseDhcp4Packet (
       // It's a PXE10 offer with PXEClient and discover vendor option.
       //
       OfferType = IsProxyOffer ? PxeOfferTypeProxyPxe10 : PxeOfferTypeDhcpPxe10;
+      DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): PXE10 offer\n"));
     } else if (IS_VALID_MTFTP_VENDOR_OPTION (Cache4->VendorOpt.BitMap)) {
       //
       // It's a WFM11a offer with PXEClient and mtftp vendor option.
       // But multi-cast download is not supported currently, so discard it.
       //
+      DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): WFM11A offer\n"));
       return EFI_DEVICE_ERROR;
     } else if (IsPxeOffer) {
       //
       // It's a BINL offer only with PXEClient.
       //
+      DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): BINL only with PXEClient\n"));
       OfferType = IsProxyOffer ? PxeOfferTypeProxyBinl : PxeOfferTypeDhcpBinl;
     } else {
       //
       // It's a DHCPv4 only offer, which is a pure DHCPv4 offer packet.
       //
+      DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcParseCachedDhcpPacket(): DHCP only with PXEClient\n"));
       OfferType = PxeOfferTypeDhcpOnly;
     }
   }
@@ -720,18 +741,22 @@ PxeBcRetryBinlOffer (
     Private->OfferBuffer[Index].Dhcp4.OfferType == PxeOfferTypeProxyBinl
     );
 
+  DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcTryBinl()\n"));
+
   Offer = &Private->OfferBuffer[Index].Dhcp4.Packet.Offer;
 
   //
   // Prefer to siaddr in header as next server address. If it's zero, then use option 54.
   //
   if (Offer->Dhcp4.Header.ServerAddr.Addr[0] == 0) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcTryBinl(): No server address\n"));
     CopyMem (
       &ServerIp.Addr[0],
       Private->OfferBuffer[Index].Dhcp4.OptList[PXEBC_DHCP4_TAG_INDEX_SERVER_ID]->Data,
       sizeof (EFI_IPv4_ADDRESS)
       );
   } else {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcTryBinl(): Got server address\n"));
     CopyMem (
       &ServerIp.Addr[0],
       &Offer->Dhcp4.Header.ServerAddr,
@@ -756,14 +781,18 @@ PxeBcRetryBinlOffer (
              NULL
              );
   if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcTryBinl(): Discovering boot service failed: %r\n", Status));
     return Status;
   }
+
+  DEBUG ((EFI_D_INFO, "[PXE BC] Reply packet length: %d\n", Reply->Length));
 
   //
   // Parse the reply for the last request packet.
   //
   Status = PxeBcParseDhcp4Packet (Cache4);
   if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcTryBinl(): Failed to parse DHCP packet\n"));
     return Status;
   }
 
@@ -775,6 +804,7 @@ PxeBcRetryBinlOffer (
     // This BINL ack doesn't have discovery option set or multicast option set
     // or bootfile name specified.
     //
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcTryBinl(): Invalid response\n"));
     return EFI_DEVICE_ERROR;
   }
 
@@ -783,6 +813,8 @@ PxeBcRetryBinlOffer (
   //
   Private->PxeBc.Mode->ProxyOfferReceived = TRUE;
   CopyMem (&Private->PxeBc.Mode->ProxyOffer.Dhcpv4, &Reply->Dhcp4, Reply->Length);
+
+  DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcTryBinl(): Is success\n"));
 
   return EFI_SUCCESS;
 }
@@ -1009,6 +1041,7 @@ PxeBcSelectDhcp4Offer (
   @retval     EFI_BUFFER_TOO_SMALL  Can't cache the offer pacet.
 
 **/
+volatile BOOLEAN loop = TRUE;
 EFI_STATUS
 PxeBcHandleDhcp4Offer (
   IN PXEBC_PRIVATE_DATA  *Private
@@ -1025,6 +1058,8 @@ PxeBcHandleDhcp4Offer (
   EFI_PXE_BASE_CODE_MODE    *Mode;
   EFI_DHCP4_PACKET          *Ack;
 
+  DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcCheckSelectedOffer()\n"));
+// while (loop) {}
   ASSERT (Private->SelectIndex > 0);
   SelectIndex = (UINT32)(Private->SelectIndex - 1);
   ASSERT (SelectIndex < PXEBC_OFFER_MAX_NUM);
@@ -1036,14 +1071,17 @@ PxeBcHandleDhcp4Offer (
     //
     // DhcpBinl offer is selected, so need try to request bootfilename by this offer.
     //
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcCheckSelectedOffer(): BINL\n"));
     if (EFI_ERROR (PxeBcRetryBinlOffer (Private, SelectIndex))) {
       Status = EFI_NO_RESPONSE;
     }
   } else if (Cache4->OfferType == PxeOfferTypeDhcpOnly) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcCheckSelectedOffer(): DHCP only\n"));
     if (Private->IsProxyRecved) {
       //
       // DhcpOnly offer is selected, so need try to request bootfile name.
       //
+      DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcCheckSelectedOffer(): Proxy recieved\n"));
       ProxyIndex = 0;
       if (Private->IsOfferSorted) {
         //
@@ -1146,6 +1184,7 @@ PxeBcHandleDhcp4Offer (
     Mode->DhcpDiscoverValid = TRUE;
   }
 
+  DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcCheckSelectedOffer(): Returning: %r\n", Status));
   return Status;
 }
 
@@ -1387,6 +1426,8 @@ PxeBcDhcp4Discover (
 
   ZeroMem (&Token, sizeof (EFI_DHCP4_TRANSMIT_RECEIVE_TOKEN));
 
+  DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService()\n"));
+
   //
   // Use broadcast if destination address not specified.
   //
@@ -1453,6 +1494,7 @@ PxeBcDhcp4Discover (
   }
 
   if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): DHCP->Build() failed with: %r\n", Status));
     return Status;
   }
 
@@ -1507,14 +1549,18 @@ PxeBcDhcp4Discover (
     }
   }
 
+  DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): DHCP->TransmitReceive(): %r\n", Status));
+
   if (TryIndex > PXEBC_BOOT_REQUEST_RETRIES) {
     //
     // No server response our PXE request
     //
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): Timeout.\n"));
     Status = EFI_TIMEOUT;
   }
 
   if (!EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): Search for PXE reply.\n"));
     RepIndex = 0;
     SrvIndex = 0;
     Response = Token.ResponseList;
@@ -1523,6 +1569,7 @@ PxeBcDhcp4Discover (
     //
     while (RepIndex < Token.ResponseCount) {
       if (Response->Length > PXEBC_DHCP4_PACKET_MAX_SIZE) {
+        DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): Length not matched.\n"));
         SrvIndex = 0;
         RepIndex++;
         Response = (EFI_DHCP4_PACKET *)((UINT8 *)Response + Response->Size);
@@ -1531,12 +1578,14 @@ PxeBcDhcp4Discover (
 
       while (SrvIndex < IpCount) {
         if (SrvList[SrvIndex].AcceptAnyResponse) {
+          DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): Accepting any response.\n"));
           break;
         }
 
         if ((SrvList[SrvIndex].Type == Type) &&
             EFI_IP4_EQUAL (&Response->Dhcp4.Header.ServerAddr, &SrvList[SrvIndex].IpAddr))
         {
+          DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): Type/IP.\n"));
           break;
         }
 
@@ -1544,6 +1593,7 @@ PxeBcDhcp4Discover (
       }
 
       if ((IpCount != SrvIndex) || (IpCount == 0)) {
+        DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): IpCount == 0\n"));
         break;
       }
 
@@ -1558,6 +1608,7 @@ PxeBcDhcp4Discover (
       // Especially for PXE discover packet, store it into mode data here.
       //
       if (Private->IsDoDiscover) {
+        DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): IsDicv\n"));
         Status = PxeBcCacheDhcp4Packet (&Private->PxeReply.Dhcp4.Packet.Ack, Response);
         if (EFI_ERROR (Status)) {
           goto ON_EXIT;
@@ -1581,61 +1632,16 @@ PxeBcDhcp4Discover (
 ON_EXIT:
 
   if (Token.ResponseList != NULL) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): Dealloc ResponseList.\n"));
     FreePool (Token.ResponseList);
   }
 
   if (Token.Packet != NULL) {
+    DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcDiscvBootService(): Dealloc Packet.\n"));
     FreePool (Token.Packet);
   }
 
   return Status;
-}
-
-/**
-  Switch the Ip4 policy to static.
-
-  @param[in]  Private             The pointer to PXEBC_PRIVATE_DATA.
-
-  @retval     EFI_SUCCESS         The policy is already configured to static.
-  @retval     Others              Other error as indicated..
-
-**/
-EFI_STATUS
-PxeBcSetIp4Policy (
-  IN PXEBC_PRIVATE_DATA  *Private
-  )
-{
-  EFI_STATUS                Status;
-  EFI_IP4_CONFIG2_PROTOCOL  *Ip4Config2;
-  EFI_IP4_CONFIG2_POLICY    Policy;
-  UINTN                     DataSize;
-
-  Ip4Config2 = Private->Ip4Config2;
-  DataSize   = sizeof (EFI_IP4_CONFIG2_POLICY);
-  Status     = Ip4Config2->GetData (
-                             Ip4Config2,
-                             Ip4Config2DataTypePolicy,
-                             &DataSize,
-                             &Policy
-                             );
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (Policy != Ip4Config2PolicyStatic) {
-    Policy = Ip4Config2PolicyStatic;
-    Status = Ip4Config2->SetData (
-                           Ip4Config2,
-                           Ip4Config2DataTypePolicy,
-                           sizeof (EFI_IP4_CONFIG2_POLICY),
-                           &Policy
-                           );
-    if (EFI_ERROR (Status)) {
-      return Status;
-    }
-  }
-
-  return EFI_SUCCESS;
 }
 
 /**
@@ -1725,12 +1731,63 @@ PxeBcDhcp4Dora (
   CopyMem (&Private->StationIp, &Mode.ClientAddress, sizeof (EFI_IPv4_ADDRESS));
   CopyMem (&Private->SubnetMask, &Mode.SubnetMask, sizeof (EFI_IPv4_ADDRESS));
   CopyMem (&Private->GatewayIp, &Mode.RouterAddress, sizeof (EFI_IPv4_ADDRESS));
+
+  DEBUG ((EFI_D_INFO, "[PXE BC] StationIp: %d.%d.%d.%d\n",
+      Mode.ClientAddress.Addr[0],
+      Mode.ClientAddress.Addr[1],
+      Mode.ClientAddress.Addr[2],
+      Mode.ClientAddress.Addr[3]));
+
+  DEBUG ((EFI_D_INFO, "[PXE BC] SubnetMask: %d.%d.%d.%d\n",
+      Mode.SubnetMask.Addr[0],
+      Mode.SubnetMask.Addr[1],
+      Mode.SubnetMask.Addr[2],
+      Mode.SubnetMask.Addr[3]));
+
+  DEBUG ((EFI_D_INFO, "[PXE BC] RouterAddress: %d.%d.%d.%d\n",
+      Mode.RouterAddress.Addr[0],
+      Mode.RouterAddress.Addr[1],
+      Mode.RouterAddress.Addr[2],
+      Mode.RouterAddress.Addr[3]));
+
   CopyMem (&PxeMode->StationIp, &Private->StationIp, sizeof (EFI_IPv4_ADDRESS));
   CopyMem (&PxeMode->SubnetMask, &Private->SubnetMask, sizeof (EFI_IPv4_ADDRESS));
+
+  if (Mode.DiscoverPacket) {
+    CopyMem (Private->PxeBc.Mode->DhcpDiscover.Raw, &Mode.DiscoverPacket->Dhcp4, Mode.DiscoverPacket->Length);
+    // PxeBcDhcp4CallBack (Dhcp4, Private, Dhcp4Bound, Dhcp4SendDiscover, Mode.DiscoverPacket, NULL);
+    FreePool (Mode.DiscoverPacket);
+  } else {
+    ASSERT (FALSE);
+  }
+
+  //
+  // Cache the offer
+  //
+  Status = PxeBcCacheDhcp4Offer (Private, Mode.ReplyPacket);
+
+  ASSERT_EFI_ERROR (Status);
+
+  if (Mode.ReplyPacket) {
+    FreePool (Mode.ReplyPacket);
+  }
+
+  //
+  // Select the offer
+  //
+  PxeBcSelectDhcp4Offer (Private);
 
   Status = PxeBcFlushStationIp (Private, &Private->StationIp, &Private->SubnetMask);
   if (EFI_ERROR (Status)) {
     goto ON_EXIT;
+  }
+
+  if (Mode.AckPacket) {
+    CopyMem (Private->PxeBc.Mode->DhcpAck.Raw, &Mode.AckPacket->Dhcp4, Mode.AckPacket->Length);
+    PxeBcDhcp4CallBack (Dhcp4, Private, Dhcp4Bound, Dhcp4RcvdAck, Mode.AckPacket, NULL);
+    FreePool (Mode.AckPacket);
+  } else {
+    ASSERT (FALSE);
   }
 
   //

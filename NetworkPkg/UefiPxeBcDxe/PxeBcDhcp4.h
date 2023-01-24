@@ -280,7 +280,7 @@ typedef struct {
 VOID
 PxeBcSeedDhcp4Packet (
   OUT EFI_DHCP4_PACKET   *Seed,
-  IN  EFI_UDP4_PROTOCOL  *Udp4
+  IN  EFI_DHCP4_PROTOCOL *Dhcp4
   );
 
 /**
