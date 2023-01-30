@@ -674,7 +674,7 @@ Mtftp4RrqInput (
   //
   // Find the port this packet is from to restart receive correctly.
   //
-  Multicast = (BOOLEAN)(EndPoint->LocalAddr.Addr[0] == Instance->McastIp);
+  // Multicast = (BOOLEAN)(EndPoint->LocalAddr.Addr[0] == Instance->McastIp);
 
   if (UdpPacket->TotalSize < MTFTP4_OPCODE_LEN) {
     goto ON_EXIT;
