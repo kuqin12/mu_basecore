@@ -246,6 +246,7 @@ DxeMain (
   EFI_VECTOR_HANDOFF_INFO       *VectorInfoList;
   EFI_VECTOR_HANDOFF_INFO       *VectorInfo;
   VOID                          *EntryPoint;
+  EFI_HOB_GUID_TYPE             *GuidHob2; // MU_CHANGE
 
   //
   // Initialize locks (memory, event)
@@ -269,10 +270,17 @@ DxeMain (
   //
   // Setup Stack Guard
   //
-  // MU_CHANGE START
+  // MU_CHANGE START: Check Memory Protection HOB
   // if (PcdGetBool (PcdCpuStackGuard)) {
-  //  Status = InitializeSeparateExceptionStacks (NULL, NULL);
-  //  ASSERT_EFI_ERROR (Status);
+  GuidHob2 = GetFirstGuidHob (&gDxeMemoryProtectionSettingsGuid);
+  if ((GuidHob2 != NULL) &&
+      (((DXE_MEMORY_PROTECTION_SETTINGS *)GET_GUID_HOB_DATA (GuidHob2))->StructVersion == (UINT8)DXE_MEMORY_PROTECTION_SETTINGS_CURRENT_VERSION) &&
+      ((DXE_MEMORY_PROTECTION_SETTINGS *)GET_GUID_HOB_DATA (GuidHob2))->CpuStackGuard)
+  {
+    Status = InitializeSeparateExceptionStacks (NULL, NULL);
+    ASSERT_EFI_ERROR (Status);
+  }
+
   // }
   // MU_CHANGE END
 
