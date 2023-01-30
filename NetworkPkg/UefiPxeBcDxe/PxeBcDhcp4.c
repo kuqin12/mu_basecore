@@ -1041,7 +1041,6 @@ PxeBcSelectDhcp4Offer (
   @retval     EFI_BUFFER_TOO_SMALL  Can't cache the offer pacet.
 
 **/
-volatile BOOLEAN loop = TRUE;
 EFI_STATUS
 PxeBcHandleDhcp4Offer (
   IN PXEBC_PRIVATE_DATA  *Private
@@ -1059,7 +1058,7 @@ PxeBcHandleDhcp4Offer (
   EFI_DHCP4_PACKET          *Ack;
 
   DEBUG ((EFI_D_INFO, "[PXE BC] PxeBcCheckSelectedOffer()\n"));
-// while (loop) {}
+
   ASSERT (Private->SelectIndex > 0);
   SelectIndex = (UINT32)(Private->SelectIndex - 1);
   ASSERT (SelectIndex < PXEBC_OFFER_MAX_NUM);
