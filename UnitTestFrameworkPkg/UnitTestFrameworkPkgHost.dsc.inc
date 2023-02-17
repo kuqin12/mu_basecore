@@ -14,11 +14,17 @@
   CpuLib|MdePkg/Library/BaseCpuLibNull/BaseCpuLibNull.inf
   CacheMaintenanceLib|MdePkg/Library/BaseCacheMaintenanceLibNull/BaseCacheMaintenanceLibNull.inf
   CmockaLib|UnitTestFrameworkPkg/Library/CmockaLib/CmockaLib.inf
+  GoogleTestLib|UnitTestFrameworkPkg/Library/GoogleTestLib/GoogleTestLib.inf
   UnitTestLib|UnitTestFrameworkPkg/Library/UnitTestLib/UnitTestLibCmocka.inf
   DebugLib|UnitTestFrameworkPkg/Library/Posix/DebugLibPosix/DebugLibPosix.inf
   MemoryAllocationLib|UnitTestFrameworkPkg/Library/Posix/MemoryAllocationLibPosix/MemoryAllocationLibPosix.inf
 
 [BuildOptions]
+# MU_CHANGE [BEGIN] - Add build flag to detect when building host-based unit tests
+  MSFT:*_*_*_CC_FLAGS  = -D HOST_UNIT_TEST_BUILD=1
+  GCC:*_*_*_CC_FLAGS   = -D HOST_UNIT_TEST_BUILD=1
+  XCODE:*_*_*_CC_FLAGS = -D HOST_UNIT_TEST_BUILD=1
+# MU_CHANGE [END] - Add build flag to detect when building host-based unit tests
   GCC:*_*_*_CC_FLAGS = -fno-pie
 !ifdef $(UNIT_TESTING_DEBUG)
   MSFT:*_*_*_CC_FLAGS  = -D UNIT_TESTING_DEBUG=1
@@ -32,6 +38,7 @@
   #
   # MSFT
   #
+  MSFT:*_*_*_CC_FLAGS               = /EHsc
   MSFT:*_*_*_DLINK_FLAGS            == /out:"$(BIN_DIR)\$(BASE_NAME).exe" /pdb:"$(BIN_DIR)\$(BASE_NAME).pdb" /IGNORE:4001 /NOLOGO /SUBSYSTEM:CONSOLE /DEBUG /STACK:0x40000,0x40000 /NODEFAULTLIB:libcmt.lib libcmtd.lib
   MSFT:*_*_IA32_DLINK_FLAGS         = /MACHINE:I386
   MSFT:*_*_X64_DLINK_FLAGS          = /MACHINE:AMD64
@@ -51,7 +58,7 @@
   #
   GCC:*_*_IA32_DLINK_FLAGS == -o $(BIN_DIR)/$(BASE_NAME) -m32 -no-pie
   GCC:*_*_X64_DLINK_FLAGS  == -o $(BIN_DIR)/$(BASE_NAME) -m64 -no-pie
-  GCC:*_*_*_DLINK2_FLAGS   == -lgcov
+  GCC:*_*_*_DLINK2_FLAGS   == -lgcov -lpthread -lstdc++ -lm
 
   #
   # Need to do this link via gcc and not ld as the pathing to libraries changes from OS version to OS version
