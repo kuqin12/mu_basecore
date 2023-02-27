@@ -305,7 +305,14 @@ Mtftp4SendRequest (
   }
 
   Packet = (EFI_MTFTP4_PACKET *)NetbufAllocSpace (Nbuf, BufferLength, FALSE);
-  ASSERT (Packet != NULL);
+  // MU_CHANGE [BEGIN] - CodeQL change
+  if (Packet == NULL) {
+    ASSERT (Packet != NULL);
+    NetbufFree (Nbuf);
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  // MU_CHANGE [END] - CodeQL change
 
   Packet->OpCode = HTONS (Instance->Operation);
   BufferLength  -= sizeof (Packet->OpCode);
@@ -368,7 +375,14 @@ Mtftp4SendError (
   }
 
   TftpError = (EFI_MTFTP4_PACKET *)NetbufAllocSpace (Packet, Len, FALSE);
-  ASSERT (TftpError != NULL);
+  // MU_CHANGE [BEGIN] - CodeQL change
+  if (TftpError == NULL) {
+    ASSERT (TftpError != NULL);
+    NetbufFree (Packet);
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  // MU_CHANGE [END] - CodeQL change
 
   TftpError->OpCode          = HTONS (EFI_MTFTP4_OPCODE_ERROR);
   TftpError->Error.ErrorCode = HTONS (ErrCode);
@@ -464,7 +478,13 @@ Mtftp4SendPacket (
   // to the connected port
   //
   Buffer = NetbufGetByte (Packet, 0, NULL);
-  ASSERT (Buffer != NULL);
+  // MU_CHANGE [BEGIN] - CodeQL change
+  if (Buffer == NULL) {
+    ASSERT (Buffer != NULL);
+    return EFI_DEVICE_ERROR;
+  }
+
+  // MU_CHANGE [BEGIN] - CodeQL change
   OpCode = NTOHS (*(UINT16 *)Buffer);
 
   if ((OpCode == EFI_MTFTP4_OPCODE_RRQ) || 
@@ -535,7 +555,13 @@ Mtftp4Retransmit (
   // Set the requests to the listening port, other packets to the connected port
   //
   Buffer = NetbufGetByte (Instance->LastPacket, 0, NULL);
-  ASSERT (Buffer != NULL);
+  // MU_CHANGE [BEGIN] - CodeQL change
+  if (Buffer == NULL) {
+    ASSERT (Buffer != NULL);
+    return EFI_DEVICE_ERROR;
+  }
+
+  // MU_CHANGE [END] - CodeQL change
   OpCode = NTOHS (*(UINT16 *)Buffer);
 
   if ((OpCode == EFI_MTFTP4_OPCODE_RRQ) || (OpCode == EFI_MTFTP4_OPCODE_DIR) ||
