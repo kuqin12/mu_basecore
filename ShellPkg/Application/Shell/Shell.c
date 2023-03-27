@@ -575,6 +575,13 @@ UefiMain (
 
     Size       = 100;
     TempString = AllocateZeroPool (Size);
+    // MU_CHANGE [BEGIN] - CodeQL change
+    if (TempString == NULL) {
+      ASSERT (TempString != NULL);
+      return EFI_OUT_OF_RESOURCES;
+    }
+
+    // MU_CHANGE [END] - CodeQL change
 
     UnicodeSPrint (TempString, Size, L"%d", PcdGet8 (PcdShellSupportLevel));
     Status = InternalEfiShellSetEnv (L"uefishellsupport", TempString, TRUE);
@@ -1259,9 +1266,15 @@ LocateStartupScript (
     }
 
     InternalEfiShellSetEnv (L"homefilesystem", StartupScriptPath, TRUE);
+    // MU_CHANGE START: Ensure FileDevicePath is a FILEPATH_DEVICE_PATH prior to accessing PathName
+    if ((FileDevicePath->Type == MEDIA_DEVICE_PATH) && (FileDevicePath->SubType == MEDIA_FILEPATH_DP)) {
+      StartupScriptPath = StrnCatGrow (&StartupScriptPath, &Size, ((FILEPATH_DEVICE_PATH *)FileDevicePath)->PathName, 0);
+      PathRemoveLastItem (StartupScriptPath);
+    } else {
+      StartupScriptPath = StrnCatGrow (&StartupScriptPath, &Size, L"\\", 0);
+    }
 
-    StartupScriptPath = StrnCatGrow (&StartupScriptPath, &Size, ((FILEPATH_DEVICE_PATH *)FileDevicePath)->PathName, 0);
-    PathRemoveLastItem (StartupScriptPath);
+    // MU_CHANGE END
     StartupScriptPath = StrnCatGrow (&StartupScriptPath, &Size, mStartupScript, 0);
   }
 
