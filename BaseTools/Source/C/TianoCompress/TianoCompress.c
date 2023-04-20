@@ -1633,7 +1633,7 @@ Returns:
 
   fclose (InputFile);
   Size += (UINTN) FileSize;
-  *BufferLength = Size;
+  *BufferLength = (UINT32)Size;
 
   if (FileBuffer != NULL) {
     return EFI_SUCCESS;

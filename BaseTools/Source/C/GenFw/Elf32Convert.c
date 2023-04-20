@@ -496,7 +496,7 @@ ScanSections32 (
   }
   mCoffOffset = mDebugOffset + sizeof(EFI_IMAGE_DEBUG_DIRECTORY_ENTRY) +
                 sizeof(EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY) +
-                strlen(mInImageName) + 1;
+                (UINT32)strlen(mInImageName) + 1;
 
   mCoffOffset = CoffAlign(mCoffOffset);
   if (SectionCount == 0) {
@@ -1124,7 +1124,7 @@ WriteDebug32 (
   EFI_IMAGE_DEBUG_DIRECTORY_ENTRY     *Dir;
   EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY *Nb10;
 
-  Len = strlen(mInImageName) + 1;
+  Len = (UINT32)strlen(mInImageName) + 1;
 
   Dir = (EFI_IMAGE_DEBUG_DIRECTORY_ENTRY*)(mCoffFile + mDebugOffset);
   Dir->Type = EFI_IMAGE_DEBUG_TYPE_CODEVIEW;

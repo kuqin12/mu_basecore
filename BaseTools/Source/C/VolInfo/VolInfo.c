@@ -421,7 +421,7 @@ Returns:
   // Seek to the start of the image, then read the entire FV to the buffer
   //
   fseek (InputFile, Offset, SEEK_SET);
-  BytesRead = fread (FvImage, 1, FvSize, InputFile);
+  BytesRead = (UINT32)fread (FvImage, 1, FvSize, InputFile);
   fclose (InputFile);
   if ((unsigned int) BytesRead != FvSize) {
     Error (NULL, 0, 0004, "error reading FvImage from", mUtilityFilename);
@@ -1595,7 +1595,7 @@ CombinePath (
   OUT CHAR8* NewPath
 )
 {
-  UINT32 DefaultPathLen;
+  UINTN  DefaultPathLen;
   UINT64 Index;
   CHAR8  QuotesStr[] = "\"";
   strcpy(NewPath, QuotesStr);

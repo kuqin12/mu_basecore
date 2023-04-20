@@ -443,6 +443,7 @@ Returns:
 --*/
 {
   UINT32                        Status;
+  EFI_STATUS                    EfiStatus;
   FILE                          *InFptr;
   EFI_PCI_EXPANSION_ROM_HEADER  RomHdr;
   PCI_DATA_STRUCTURE            PciDs23;
@@ -552,9 +553,10 @@ Returns:
     }
 
     CompressedFileSize  = FileSize;
-    Status              = EfiCompress (Buffer, FileSize, CompressedBuffer, &CompressedFileSize);
-    if (Status != STATUS_SUCCESS) {
+    EfiStatus           = EfiCompress (Buffer, FileSize, CompressedBuffer, &CompressedFileSize);
+    if (EfiStatus != STATUS_SUCCESS) {
       Error (NULL, 0, 0007, "Error compressing file!", NULL);
+      Status = STATUS_ERROR;
       goto BailOut;
     }
     //
@@ -929,7 +931,7 @@ Returns:
   UINT32    ClassCode;
   UINT32    CodeRevision;
   EFI_STATUS Status;
-  INTN       ReturnStatus;
+  INT32      ReturnStatus;
   BOOLEAN    EfiRomFlag;
   UINT64     TempValue;
   char       *OptionName;

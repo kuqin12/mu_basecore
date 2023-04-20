@@ -239,7 +239,7 @@ Returns:
   //
   // Read all of the file contents.
   //
-  *BytesRead = fread (*InputFileImage, sizeof (UINT8), FileSize, InputFile);
+  *BytesRead = (UINT32)fread (*InputFileImage, sizeof (UINT8), FileSize, InputFile);
   if (*BytesRead != sizeof (UINT8) * FileSize) {
     Error (NULL, 0, 0004, "Error reading the input file", InputFileName);
     fclose (InputFile);
@@ -306,7 +306,7 @@ Returns:
   //
   // Write all of the file contents.
   //
-  BytesWrote = fwrite (OutputFileImage, sizeof (UINT8), BytesToWrite, OutputFile);
+  BytesWrote = (UINT32)fwrite (OutputFileImage, sizeof (UINT8), (size_t)BytesToWrite, OutputFile);
   if (BytesWrote != sizeof (UINT8) * BytesToWrite) {
     Error (NULL, 0, 0002, "Error writing the output file", OutputFileName);
     fclose (OutputFile);

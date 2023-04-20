@@ -1257,7 +1257,7 @@ Returns:
 
 --*/
 {
-  UINT32                    Index;
+  UINTN                     Index;
   UINT32                    InputFileNum;
   FILE                      *OutFile;
   CHAR8                     **InputFileName;

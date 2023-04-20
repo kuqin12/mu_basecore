@@ -1071,8 +1071,8 @@ Returns:
   UINT8                     *Remainder;
   EFI_STATUS                Status;
   UINT32                    FfsHeaderLength;
-  UINT32                    FfsFileLength;
-  UINT32                    PadSize;
+  UINTN                     FfsFileLength;
+  UINTN                     PadSize;
   UINTN                     Misalignment;
   EFI_FFS_INTEGRITY_CHECK   *IntegrityCheck;
 
@@ -1355,7 +1355,7 @@ Returns:
       //
       // Sanity check. The file MUST align appropriately
       //
-      if (((UINTN) *VtfFileImage + GetFfsHeaderLength((EFI_FFS_FILE_HEADER *)FileBuffer) - (UINTN) FvImage->FileImage) % (1 << CurrentFileAlignment)) {
+      if (((UINTN) *VtfFileImage + GetFfsHeaderLength((EFI_FFS_FILE_HEADER *)FileBuffer) - (UINTN) FvImage->FileImage) % (UINTN)(1 << CurrentFileAlignment)) {
         Error (NULL, 0, 3000, "Invalid", "VTF file cannot be aligned on a %u-byte boundary.", (unsigned) (1 << CurrentFileAlignment));
         free (FileBuffer);
         return EFI_ABORTED;
@@ -1394,8 +1394,8 @@ Returns:
   // Add pad file if necessary
   //
   if (!AdjustInternalFfsPadding ((EFI_FFS_FILE_HEADER *) FileBuffer, FvImage,
-         1 << CurrentFileAlignment, &FileSize)) {
-    Status = AddPadFile (FvImage, 1 << CurrentFileAlignment, *VtfFileImage, NULL, FileSize);
+         (UINTN)(1 << CurrentFileAlignment), &FileSize)) {
+    Status = AddPadFile (FvImage, (UINT32)(1 << CurrentFileAlignment), *VtfFileImage, NULL, (UINT32)FileSize);
     if (EFI_ERROR (Status)) {
       Error (NULL, 0, 4002, "Resource", "FV space is full, could not add pad file for data alignment property.");
       free (FileBuffer);
@@ -1596,7 +1596,7 @@ Returns:
   //
   // Initialize FV library
   //
-  InitializeFvLib (FvImage->FileImage, FvInfo->Size);
+  InitializeFvLib (FvImage->FileImage, (UINT32)FvInfo->Size);
 
   //
   // Verify VTF file
@@ -2366,7 +2366,7 @@ Returns:
   //
   // Initialize FV library
   //
-  InitializeFvLib (FvImage->FileImage, FvInfo->Size);
+  InitializeFvLib (FvImage->FileImage, (UINT32)FvInfo->Size);
 
   //
   // Find the Sec Core
@@ -2862,7 +2862,7 @@ Returns:
   //
   // Initialize the FV library.
   //
-  InitializeFvLib (FvImageMemoryFile.FileImage, FvImageSize);
+  InitializeFvLib (FvImageMemoryFile.FileImage, (UINT32)FvImageSize);
 
   //
   // Initialize the VTF file address.
@@ -3322,7 +3322,7 @@ Returns:
     //
     // Update FvInfo data
     //
-    FvInfoPtr->FvBlocks[0].NumBlocks = CurrentOffset / FvInfoPtr->FvBlocks[0].Length + ((CurrentOffset % FvInfoPtr->FvBlocks[0].Length)?1:0);
+    FvInfoPtr->FvBlocks[0].NumBlocks = (UINT32)(CurrentOffset / FvInfoPtr->FvBlocks[0].Length + ((CurrentOffset % FvInfoPtr->FvBlocks[0].Length)?1:0));
     FvInfoPtr->Size = FvInfoPtr->FvBlocks[0].NumBlocks * FvInfoPtr->FvBlocks[0].Length;
     FvInfoPtr->FvBlocks[1].NumBlocks = 0;
     FvInfoPtr->FvBlocks[1].Length = 0;
@@ -3337,13 +3337,13 @@ Returns:
   //
   // Set Fv Size Information
   //
-  mFvTotalSize = FvInfoPtr->Size;
-  mFvTakenSize = CurrentOffset;
+  mFvTotalSize = (UINT32)FvInfoPtr->Size;
+  mFvTakenSize = (UINT32)CurrentOffset;
   if ((mFvTakenSize == mFvTotalSize) && (MaxPadFileSize > 0)) {
     //
     // This FV means TOP FFS has been taken. Then, check whether there is padding data for use.
     //
-    mFvTakenSize = mFvTakenSize - MaxPadFileSize;
+    mFvTakenSize = mFvTakenSize - (UINT32)MaxPadFileSize;
   }
 
   return EFI_SUCCESS;

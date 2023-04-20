@@ -128,7 +128,7 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
 
         if self.tool_chain_tag.lower().startswith("vs"):
             # MU_CHANGE: Specify target architecture
-            if self.target_arch is not None:
+            if self.target_arch is None:
                 # Put a default as IA32
                 self.target_arch = "IA32"
 
@@ -137,6 +137,12 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
                 TargetInfoArch = "x86"
             elif self.target_arch == "ARM":
                 VcToolChainArch = "x86_arm"
+                TargetInfoArch = "ARM"
+            elif self.target_arch == "X64":
+                VcToolChainArch = "amd64"
+                TargetInfoArch = "x86"
+            elif self.target_arch == "ARM":
+                VcToolChainArch = "arm64"
                 TargetInfoArch = "ARM"
             else:
                 raise NotImplementedError()

@@ -938,7 +938,7 @@ ScanSections64 (
   }
   mCoffOffset = mDebugOffset + sizeof(EFI_IMAGE_DEBUG_DIRECTORY_ENTRY) +
                 sizeof(EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY) +
-                strlen(mInImageName) + 1;
+                (UINT32)strlen(mInImageName) + 1;
 
   mCoffOffset = CoffAlign(mCoffOffset);
   if (SectionCount == 0) {
@@ -959,7 +959,7 @@ ScanSections64 (
     const UINT8 *SymName;
 
     mExportOffset = mCoffOffset;
-    mExportSize = sizeof(EFI_IMAGE_EXPORT_DIRECTORY) + strlen(mInImageName) + 1;
+    mExportSize = sizeof(EFI_IMAGE_EXPORT_DIRECTORY) + (UINT32)strlen(mInImageName) + 1;
 
     for (i = 0; i < mEhdr->e_shnum; i++) {
 
@@ -992,7 +992,7 @@ ScanSections64 (
 
           strcpy(mExportSymName[mExportSymNum], (CHAR8*)SymName);
           mExportRVA[mExportSymNum] = (UINT32)(Sym->st_value);
-          mExportSize += 2 * EFI_IMAGE_EXPORT_ADDR_SIZE + EFI_IMAGE_EXPORT_ORDINAL_SIZE + strlen((CHAR8 *)SymName) + 1;
+          mExportSize += 2 * EFI_IMAGE_EXPORT_ADDR_SIZE + EFI_IMAGE_EXPORT_ORDINAL_SIZE + (UINT32)strlen((CHAR8 *)SymName) + 1;
           mExportSymNum ++;
           break;
         }
@@ -1014,7 +1014,7 @@ ScanSections64 (
             continue;
           }
           mExportRVA[ExpIndex] = (UINT32)(Sym->st_value);
-          mExportSize += 2 * EFI_IMAGE_EXPORT_ADDR_SIZE + EFI_IMAGE_EXPORT_ORDINAL_SIZE + strlen((CHAR8 *)SymName) + 1;
+          mExportSize += 2 * EFI_IMAGE_EXPORT_ADDR_SIZE + EFI_IMAGE_EXPORT_ORDINAL_SIZE + (UINT32)strlen((CHAR8 *)SymName) + 1;
         }
       }
 
@@ -1880,7 +1880,7 @@ WriteDebug64 (
   EFI_IMAGE_DEBUG_DIRECTORY_ENTRY     *Dir;
   EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY *Nb10;
 
-  Len = strlen(mInImageName) + 1;
+  Len = (UINT32)strlen(mInImageName) + 1;
 
   Dir = (EFI_IMAGE_DEBUG_DIRECTORY_ENTRY*)(mCoffFile + mDebugOffset);
   Dir->Type = EFI_IMAGE_DEBUG_TYPE_CODEVIEW;
@@ -1953,7 +1953,7 @@ WriteExport64 (
   ExportDir->AddressOfNameOrdinals = ExportDir->AddressOfNames + EFI_IMAGE_EXPORT_ADDR_SIZE * mExportSymNum;
 
   FileNameOffset = ExportDir->AddressOfNameOrdinals + EFI_IMAGE_EXPORT_ORDINAL_SIZE * mExportSymNum;
-  NameOffset = FileNameOffset + strlen(mInImageName) + 1;
+  NameOffset = FileNameOffset + (UINT32)strlen(mInImageName) + 1;
 
   // Write Input image Name RVA
   ExportDir->Name = FileNameOffset;
@@ -1984,7 +1984,7 @@ WriteExport64 (
     // Write Export Name Table
     //
     strcpy((char *)(mCoffFile + NameOffset), mExportSymName[Index]);
-    NameOffset += strlen(mExportSymName[Index]) + 1;
+    NameOffset += (UINT32)strlen(mExportSymName[Index]) + 1;
   }
 
   NtHdr = (EFI_IMAGE_OPTIONAL_HEADER_UNION *)(mCoffFile + mNtHdrOffset);

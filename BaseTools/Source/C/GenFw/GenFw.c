@@ -542,9 +542,9 @@ PeCoffConvertImageToXip (
   EFI_IMAGE_OPTIONAL_HEADER_UNION  *NewPeHdr;
   EFI_IMAGE_SECTION_HEADER         *SectionHeader;
   UINTN                            TotalNecessaryFileSize;
-  UINTN                            SectionSize;
+  UINT32                           SectionSize;
   UINT8                            *XipFile;
-  UINT32                           XipLength;
+  UINTN                            XipLength;
   UINTN                            Index;
   UINTN                            FirstSectionOffset;
   BOOLEAN                          ConversionNeeded;
@@ -666,7 +666,7 @@ PeCoffConvertImageToXip (
   }
 
   free (*FileBuffer);
-  *FileLength = XipLength;
+  *FileLength = (UINT32)XipLength;
   *FileBuffer = XipFile;
 
   mIsConvertXip = TRUE;
@@ -1087,6 +1087,7 @@ Returns:
   PD_RUNTIME_FUNCTION              *RuntimeFunction;  // MU_CHANGE: Resolve definition conflict for ARM
   UNWIND_INFO                      *UnwindInfo;
   STATUS                           Status;
+  EFI_STATUS                       EfiStatus;
   BOOLEAN                          ReplaceFlag;
   BOOLEAN                          KeepExceptionTableFlag;
   BOOLEAN                          KeepOptionalHeaderFlag;
@@ -1336,13 +1337,14 @@ Returns:
     if ((stricmp (argv[0], "--rebase") == 0)) {
       if (argv[1][0] == '-') {
         NegativeAddr = TRUE;
-        Status = AsciiStringToUint64 (argv[1] + 1, FALSE, &Temp64);
+        EfiStatus = AsciiStringToUint64 (argv[1] + 1, FALSE, &Temp64);
       } else {
         NegativeAddr = FALSE;
-        Status = AsciiStringToUint64 (argv[1], FALSE, &Temp64);
+        EfiStatus = AsciiStringToUint64 (argv[1], FALSE, &Temp64);
       }
-      if (Status != EFI_SUCCESS) {
+      if (EfiStatus != EFI_SUCCESS) {
         Error (NULL, 0, 1003, "Invalid option value", "%s = %s", argv[0], argv[1]);
+        Status = STATUS_ERROR;
         goto Finish;
       }
       mOutImageType = FW_REBASE_IMAGE;
@@ -1355,13 +1357,14 @@ Returns:
     if ((stricmp (argv[0], "--address") == 0)) {
       if (argv[1][0] == '-') {
         NegativeAddr = TRUE;
-        Status = AsciiStringToUint64 (argv[1] + 1, FALSE, &Temp64);
+        EfiStatus = AsciiStringToUint64 (argv[1] + 1, FALSE, &Temp64);
       } else {
         NegativeAddr = FALSE;
-        Status = AsciiStringToUint64 (argv[1], FALSE, &Temp64);
+        EfiStatus = AsciiStringToUint64 (argv[1], FALSE, &Temp64);
       }
-      if (Status != EFI_SUCCESS) {
+      if (EfiStatus != EFI_SUCCESS) {
         Error (NULL, 0, 1003, "Invalid option value", "%s = %s", argv[0], argv[1]);
+        Status = STATUS_ERROR;
         goto Finish;
       }
       mOutImageType = FW_SET_ADDRESS_IMAGE;
@@ -1399,9 +1402,10 @@ Returns:
     }
 
     if ((stricmp (argv[0], "-d") == 0) || (stricmp (argv[0], "--debug") == 0)) {
-      Status = AsciiStringToUint64 (argv[1], FALSE, &LogLevel);
-      if (EFI_ERROR (Status)) {
+      EfiStatus = AsciiStringToUint64 (argv[1], FALSE, &LogLevel);
+      if (EFI_ERROR (EfiStatus)) {
         Error (NULL, 0, 1003, "Invalid option value", "%s = %s", argv[0], argv[1]);
+        Status = STATUS_ERROR;
         goto Finish;
       }
       if (LogLevel > 9) {
@@ -1416,9 +1420,10 @@ Returns:
     }
 
     if ((stricmp (argv[0], "-g") == 0) || (stricmp (argv[0], "--hiiguid") == 0)) {
-      Status = StringToGuid (argv[1], &HiiPackageListGuid);
-      if (EFI_ERROR (Status)) {
+      EfiStatus = StringToGuid (argv[1], &HiiPackageListGuid);
+      if (EFI_ERROR (EfiStatus)) {
         Error (NULL, 0, 1003, "Invalid option value", "%s = %s", argv[0], argv[1]);
+        Status = STATUS_ERROR;
         goto Finish;
       }
       argc -= 2;
@@ -2223,16 +2228,17 @@ Returns:
       NewBaseAddress = (UINT64) (0 - NewBaseAddress);
     }
     if (mOutImageType == FW_REBASE_IMAGE) {
-      Status = RebaseImage (mInImageName, FileBuffer, NewBaseAddress);
+      EfiStatus = RebaseImage (mInImageName, FileBuffer, NewBaseAddress);
     } else {
-      Status = SetAddressToSectionHeader (mInImageName, FileBuffer, NewBaseAddress);
+      EfiStatus = SetAddressToSectionHeader (mInImageName, FileBuffer, NewBaseAddress);
     }
-    if (EFI_ERROR (Status)) {
+    if (EFI_ERROR (EfiStatus)) {
       if (NegativeAddr) {
         Error (NULL, 0, 3000, "Invalid", "Rebase/Set Image %s to Base address -0x%llx can't success", mInImageName, 0 - NewBaseAddress);
       } else {
         Error (NULL, 0, 3000, "Invalid", "Rebase/Set Image %s to Base address 0x%llx can't success", mInImageName, NewBaseAddress);
       }
+      Status = STATUS_ERROR;
       goto Finish;
     }
 
@@ -2263,9 +2269,10 @@ Returns:
   // Zero Debug Information of Pe Image
   //
   if (mOutImageType == FW_ZERO_DEBUG_IMAGE) {
-    Status = ZeroDebugData (FileBuffer, TRUE);
-    if (EFI_ERROR (Status)) {
+    EfiStatus = ZeroDebugData (FileBuffer, TRUE);
+    if (EFI_ERROR (EfiStatus)) {
       Error (NULL, 0, 3000, "Invalid", "Zero DebugData Error status is 0x%x", (int) Status);
+      Status = STATUS_ERROR;
       goto Finish;
     }
 
@@ -2280,8 +2287,9 @@ Returns:
   // Set Time Stamp of Pe Image
   //
   if (mOutImageType == FW_SET_STAMP_IMAGE) {
-    Status = SetStamp (FileBuffer, TimeStamp);
-    if (EFI_ERROR (Status)) {
+    EfiStatus = SetStamp (FileBuffer, TimeStamp);
+    if (EFI_ERROR (EfiStatus)) {
+      Status = STATUS_ERROR;
       goto Finish;
     }
 
