@@ -141,8 +141,8 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
             elif self.target_arch == "X64":
                 VcToolChainArch = "amd64"
                 TargetInfoArch = "x86"
-            elif self.target_arch == "ARM":
-                VcToolChainArch = "arm64"
+            elif self.target_arch == "AARCH64":
+                VcToolChainArch = "amd64_arm64"
                 TargetInfoArch = "ARM"
             else:
                 raise NotImplementedError()
