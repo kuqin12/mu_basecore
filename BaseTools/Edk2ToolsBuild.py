@@ -32,7 +32,8 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
         ParserObj.add_argument("-s", "--skip_path_env", dest="skip_env", default=False, action='store_true',
                                help="Skip the creation of the path_env descriptor file")
         ParserObj.add_argument("-a", "--target_arch", dest="arch", default=None, choices=[None, 'IA32', 'X64', 'ARM', 'AARCH64'],
-                               help="Specify the architecture of the built base tools")
+                               help="Specify the architecture of the built base tools. Not specifying this will fall back to the default "
+                               "behavior, for Windows builds, IA32 target will be built, for Linux builds, target arch will be the same as host arch.")
         args = ParserObj.parse_args()
         self.tool_chain_tag = args.tct
         self.target_arch = args.arch
@@ -48,6 +49,7 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
     def GetActiveScopes(self):
         ''' return tuple containing scopes that should be active for this process '''
 
+        # MU_CHANGE STARTs: Adding scope for cross compilers when building for ARM/AARCH64
         scopes = ('global',)
         if GetHostInfo().os == "Linux" and self.tool_chain_tag.lower().startswith("gcc"):
             if self.target_arch is None:
@@ -57,6 +59,7 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
             if "ARM" in self.target_arch:
                 scopes += ("gcc_arm_linux",)
         return scopes
+        # MU_CHANGE ENDs
 
     def GetLoggingLevel(self, loggerType):
         ''' Get the logging level for a given type (return Logging.Level)
@@ -197,7 +200,7 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
             return ret
 
         elif self.tool_chain_tag.lower().startswith("gcc"):
-            # MU_CHANGE: Specify target architecture
+            # MU_CHANGE STARTs: Specify target architecture
             # Note: This HOST_ARCH is in respect to the BUILT base tools, not the host arch where
             # this script is BUILDING the base tools.
             prefix = None
@@ -270,6 +273,7 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
             ret = RunCmd("make", "clean", workingdir=shell_env.get_shell_var("EDK_TOOLS_PATH"))
             if ret != 0:
                 raise Exception("Failed to build.")
+            # MU_CHANGE ENDs
 
             cpu_count = self.GetCpuThreads()
             ret = RunCmd("make", f"-C .  -j {cpu_count}", workingdir=shell_env.get_shell_var("EDK_TOOLS_PATH"))
