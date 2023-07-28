@@ -68,6 +68,7 @@ EfiBootManagerConnectAll (
   VOID
   )
 {
+  ASSERT (FALSE);
   //
   // Connect the platform console first
   //
