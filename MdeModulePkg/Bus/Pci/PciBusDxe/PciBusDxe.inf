@@ -93,6 +93,7 @@
   gEdkiiDeviceSecurityProtocolGuid                ## SOMETIMES_CONSUMES
   gEdkiiDeviceIdentifierTypePciGuid               ## SOMETIMES_CONSUMES
   gEfiLoadedImageDevicePathProtocolGuid           ## CONSUMES
+  gEfiPciHostBridgeLibPlatformDepex
 
 [Guids]
   gEfiEventExitBootServicesGuid                   ## SOMETIMES_CONSUMES     ## MU_CHANGE

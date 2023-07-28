@@ -99,6 +99,14 @@ PciBusEntryPoint (
                     );
   }
 
+  Handle = NULL;
+  Status = gBS->InstallProtocolInterface (
+                &Handle,
+                &gEfiPciHostBridgeLibPlatformDepex,
+                EFI_NATIVE_INTERFACE,
+                NULL
+                );
+
   return Status;
 }
 
