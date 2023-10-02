@@ -77,6 +77,8 @@ UINTN
   IN UINTN  Value
   );
 
+#if defined (MDE_CPU_IA32) || defined (MDE_CPU_X64)
+
 /**
   Prototype of service that reads and returns an IA32_DESCRIPTOR.
 
@@ -491,6 +493,8 @@ VOID
   IN  UINTN                    ValueSize
   );
 
+#endif // MDE_CPU_IA32 || MDE_CPU_X64
+
 ///
 /// Common services
 ///
@@ -574,7 +578,9 @@ typedef struct {
 ///
 typedef struct {
   UNIT_TEST_HOST_BASE_LIB_COMMON    *Common;
+#if defined (MDE_CPU_IA32) || defined (MDE_CPU_X64)
   UNIT_TEST_HOST_BASE_LIB_X86       *X86;
+#endif
 } UNIT_TEST_HOST_BASE_LIB;
 
 extern UNIT_TEST_HOST_BASE_LIB  gUnitTestHostBaseLib;
