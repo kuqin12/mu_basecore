@@ -64,7 +64,7 @@
   #
   GCC:*_*_IA32_DLINK_FLAGS == -o $(BIN_DIR)/$(MODULE_NAME_GUID) -m32 -no-pie
   GCC:*_*_X64_DLINK_FLAGS  == -o $(BIN_DIR)/$(MODULE_NAME_GUID) -m64 -no-pie
-  GCC:*_*_X64_DLINK_FLAGS  == -o $(BIN_DIR)/$(MODULE_NAME_GUID) -no-pie
+  GCC:*_*_AARCH64_DLINK_FLAGS  == -o $(BIN_DIR)/$(MODULE_NAME_GUID) -no-pie
   GCC:*_*_*_DLINK2_FLAGS   == -lgcov -lpthread -lstdc++ -lm
 
   #
