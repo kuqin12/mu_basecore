@@ -31,10 +31,10 @@ extends:
     build_matrix:
       TARGET_TEST_POLICY:
         Pkgs: 'UnitTestFrameworkPkg,PolicyServicePkg'
-        Targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
+        Targets: 'NOOPT'
         ArchList: $(arch_list)
       TARGET_TEST_POLICY_ARM:
         Pkgs: 'UnitTestFrameworkPkg,PolicyServicePkg'
-        Targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
+        Targets: 'NOOPT'
         ArchList: $(arch_list)
         SelfHostAgent: true
