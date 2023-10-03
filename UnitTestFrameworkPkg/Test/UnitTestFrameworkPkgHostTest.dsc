@@ -26,17 +26,24 @@
   # Build HOST_APPLICATIONs that test the SampleUnitTest
   #
   UnitTestFrameworkPkg/Test/UnitTest/Sample/SampleUnitTest/SampleUnitTestHost.inf
-  UnitTestFrameworkPkg/Test/GoogleTest/Sample/SampleGoogleTest/SampleGoogleTestHost.inf
 
   #
   # Build HOST_APPLICATION Libraries
   #
   UnitTestFrameworkPkg/Library/CmockaLib/CmockaLib.inf
-  UnitTestFrameworkPkg/Library/FunctionMockLib/FunctionMockLib.inf
   UnitTestFrameworkPkg/Library/GoogleTestLib/GoogleTestLib.inf
   UnitTestFrameworkPkg/Library/Posix/DebugLibPosix/DebugLibPosix.inf
   UnitTestFrameworkPkg/Library/Posix/MemoryAllocationLibPosix/MemoryAllocationLibPosix.inf
   UnitTestFrameworkPkg/Library/UnitTestLib/UnitTestLibCmocka.inf
 
 [Components.IA32, Components.X64]
+  #
+  # Build HOST_APPLICATIONs that test the SampleUnitTest
+  #
+  UnitTestFrameworkPkg/Test/GoogleTest/Sample/SampleGoogleTest/SampleGoogleTestHost.inf
+
+  #
+  # Build HOST_APPLICATION Libraries
+  #
+  UnitTestFrameworkPkg/Library/FunctionMockLib/FunctionMockLib.inf
   UnitTestFrameworkPkg/Library/SubhookLib/SubhookLib.inf
