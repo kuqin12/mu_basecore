@@ -45,6 +45,7 @@
   MSFT:*_*_*_DLINK_FLAGS            == /out:"$(BIN_DIR)\$(MODULE_NAME_GUID).exe" /pdb:"$(BIN_DIR)\$(MODULE_NAME_GUID).pdb" /IGNORE:4001 /NOLOGO /SUBSYSTEM:CONSOLE /DEBUG /STACK:0x40000,0x40000 /NODEFAULTLIB:libcmt.lib libcmtd.lib
   MSFT:*_*_IA32_DLINK_FLAGS         = /MACHINE:I386
   MSFT:*_*_X64_DLINK_FLAGS          = /MACHINE:AMD64
+  MSFT:*_*_AARCH64_DLINK_FLAGS          = /MACHINE:ARM64
 
   MSFT:*_VS2015_IA32_DLINK_FLAGS    = /LIBPATH:"%VS2015_PREFIX%Lib" /LIBPATH:"%VS2015_PREFIX%VC\Lib" /LIBPATH:"%UniversalCRTSdkDir%lib\%UCRTVersion%\ucrt\x86" /LIBPATH:"%WindowsSdkDir%lib\%WindowsSDKLibVersion%\um\x86"
   MSFT:*_VS2015x86_IA32_DLINK_FLAGS = /LIBPATH:"%VS2015_PREFIX%Lib" /LIBPATH:"%VS2015_PREFIX%VC\Lib" /LIBPATH:"%UniversalCRTSdkDir%lib\%UCRTVersion%\ucrt\x86" /LIBPATH:"%WindowsSdkDir%lib\%WindowsSDKLibVersion%\um\x86"
