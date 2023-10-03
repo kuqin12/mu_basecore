@@ -505,6 +505,8 @@ typedef struct {
   UNIT_TEST_HOST_BASE_LIB_READ_BOOLEAN    GetInterruptState;
 } UNIT_TEST_HOST_BASE_LIB_COMMON;
 
+#if defined (MDE_CPU_IA32) || defined (MDE_CPU_X64)
+
 ///
 /// IA32/X64 services
 ///
@@ -570,6 +572,8 @@ typedef struct {
   UNIT_TEST_HOST_BASE_LIB_VOID                           AsmLfence;
   UNIT_TEST_HOST_BASE_LIB_ASM_PATCH_INSTRUCTION_X86      PatchInstructionX86;
 } UNIT_TEST_HOST_BASE_LIB_X86;
+
+#endif // MDE_CPU_IA32 || MDE_CPU_X64
 
 ///
 /// Data structure that contains pointers structures of common services and CPU
