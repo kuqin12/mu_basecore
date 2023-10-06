@@ -312,15 +312,17 @@ LwipDhcp4Configure (
 
   Status  = EFI_ACCESS_DENIED;
 
-  DBG ("[MP TCPIP] DHCP->Configure(): State: %d\n", LwipDhcp->state);
+  if (LwipDhcp) {
+    DBG ("[MP TCPIP] DHCP->Configure(): State: %d\n", LwipDhcp->state);
 
-  switch (LwipDhcp->state) {
-  case DHCP_STATE_OFF:
-  case DHCP_STATE_INIT:
-  case DHCP_STATE_BOUND:
-    break;
-  default:
-    goto ON_EXIT;
+    switch (LwipDhcp->state) {
+    case DHCP_STATE_OFF:
+    case DHCP_STATE_INIT:
+    case DHCP_STATE_BOUND:
+      break;
+    default:
+      goto ON_EXIT;
+    }
   }
 
   if (Device->Dhcp4ActiveChild != NULL && Device->Dhcp4ActiveChild != Instance) {

@@ -126,6 +126,7 @@ CoreAcquireSpinLock (
       //
       // Already acquired by this CPU
       //
+      ASSERT (FALSE);
       return;
     }
   }
@@ -176,6 +177,7 @@ CoreReleaseSpinLock (
   DebugLock->Line = 0;
   DebugLock->OwnerFile = "Nobody";
   Tpl = DebugLock->OwnerTpl;
+  CoreRaiseTpl (TPL_HIGH_LEVEL);
   ReleaseSpinLock (&DebugLock->Lock);
   CoreRestoreTpl (Tpl);
 //  DEBUG ((EFI_D_INFO, "Spinlock %lX released by CPU %d\n", DebugLock, CpuId));
