@@ -203,6 +203,7 @@ EFI_RUNTIME_SERVICES  *gDxeCoreRT         = &mEfiRuntimeServicesTableTemplate;
 EFI_HANDLE            gDxeCoreImageHandle = NULL;
 
 BOOLEAN  gMemoryMapTerminated = FALSE;
+BOOLEAN  IntoBdsPhase         = FALSE;
 
 //
 // EFI Decompress Protocol
@@ -604,6 +605,7 @@ DxeMain (
   //
   // Transfer control to the BDS Architectural Protocol
   //
+  IntoBdsPhase = TRUE;
   gBds->Entry (gBds);
 
   //

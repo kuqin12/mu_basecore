@@ -165,6 +165,7 @@ typedef struct {
 
   EFI_HANDLE                       ImageHandle;
   BOOLEAN                          IsFvImage;
+  EFI_FV_FILETYPE                  ImageType;
 } EFI_CORE_DRIVER_ENTRY;
 
 //

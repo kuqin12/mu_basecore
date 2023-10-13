@@ -380,7 +380,7 @@ CoreTrust (
 
   return EFI_NOT_FOUND;
 }
-
+extern BOOLEAN IntoBdsPhase;
 /**
   This is the main Dispatcher for DXE and it exits when there are no more
   drivers to run. Drain the mScheduledQueue and load and start a PE
@@ -509,22 +509,28 @@ CoreDispatcher (
         //
         Status = CoreProcessFvImageFile (DriverEntry->Fv, DriverEntry->FvHandle, &DriverEntry->FileName);
       } else {
-        REPORT_STATUS_CODE_WITH_EXTENDED_DATA (
-          EFI_PROGRESS_CODE,
-          (EFI_SOFTWARE_DXE_CORE | EFI_SW_PC_INIT_BEGIN),
-          &DriverEntry->ImageHandle,
-          sizeof (DriverEntry->ImageHandle)
-          );
-        ASSERT (DriverEntry->ImageHandle != NULL);
+        // if (!IntoBdsPhase || DriverEntry->ImageType == EFI_FV_FILETYPE_DRIVER) {
+          REPORT_STATUS_CODE_WITH_EXTENDED_DATA (
+            EFI_PROGRESS_CODE,
+            (EFI_SOFTWARE_DXE_CORE | EFI_SW_PC_INIT_BEGIN),
+            &DriverEntry->ImageHandle,
+            sizeof (DriverEntry->ImageHandle)
+            );
+          ASSERT (DriverEntry->ImageHandle != NULL);
 
-        Status = CoreStartImage (DriverEntry->ImageHandle, NULL, NULL);
+          Status = CoreStartImage (DriverEntry->ImageHandle, NULL, NULL);
 
-        REPORT_STATUS_CODE_WITH_EXTENDED_DATA (
-          EFI_PROGRESS_CODE,
-          (EFI_SOFTWARE_DXE_CORE | EFI_SW_PC_INIT_END),
-          &DriverEntry->ImageHandle,
-          sizeof (DriverEntry->ImageHandle)
-          );
+          REPORT_STATUS_CODE_WITH_EXTENDED_DATA (
+            EFI_PROGRESS_CODE,
+            (EFI_SOFTWARE_DXE_CORE | EFI_SW_PC_INIT_END),
+            &DriverEntry->ImageHandle,
+            sizeof (DriverEntry->ImageHandle)
+            );
+        // } else {
+        //   DEBUG ((DEBUG_WARN, "Rejected driver %g due to BDS phase and not UEFI Driver type!!!\n", &DriverEntry->FileName));
+        //   DriverEntry->Scheduled = FALSE;
+        //   RemoveEntryList (&DriverEntry->ScheduledLink);
+        // }
       }
 
       ReturnStatus = EFI_SUCCESS;
@@ -892,6 +898,7 @@ CoreAddToDriverList (
   DriverEntry->FvHandle         = FvHandle;
   DriverEntry->Fv               = Fv;
   DriverEntry->FvFileDevicePath = CoreFvToDevicePath (Fv, FvHandle, DriverName);
+  DriverEntry->ImageType        = Type;
 
   CoreGetDepexSectionAndPreProccess (DriverEntry);
 
