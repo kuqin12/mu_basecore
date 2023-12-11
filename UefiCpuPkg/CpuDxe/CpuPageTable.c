@@ -127,25 +127,26 @@ IsInSmm (
   VOID
   )
 {
-  BOOLEAN  InSmm;
+  return FALSE;
+  // BOOLEAN  InSmm;
 
-  InSmm = FALSE;
-  if (mSmmBase2 == NULL) {
-    gBS->LocateProtocol (&gEfiSmmBase2ProtocolGuid, NULL, (VOID **)&mSmmBase2);
-  }
+  // InSmm = FALSE;
+  // if (mSmmBase2 == NULL) {
+  //   gBS->LocateProtocol (&gEfiSmmBase2ProtocolGuid, NULL, (VOID **)&mSmmBase2);
+  // }
 
-  if (mSmmBase2 != NULL) {
-    mSmmBase2->InSmm (mSmmBase2, &InSmm);
-  }
+  // if (mSmmBase2 != NULL) {
+  //   mSmmBase2->InSmm (mSmmBase2, &InSmm);
+  // }
 
-  //
-  // mSmmBase2->InSmm() can only detect if the caller is running in SMRAM
-  // or from SMM driver. It cannot tell if the caller is running in SMM mode.
-  // Check page table base address to guarantee that because SMM mode willl
-  // load its own page table.
-  //
-  return (InSmm &&
-          mPagingContext.ContextData.X64.PageTableBase != (UINT64)AsmReadCr3 ());
+  // //
+  // // mSmmBase2->InSmm() can only detect if the caller is running in SMRAM
+  // // or from SMM driver. It cannot tell if the caller is running in SMM mode.
+  // // Check page table base address to guarantee that because SMM mode willl
+  // // load its own page table.
+  // //
+  // return (InSmm &&
+  //         mPagingContext.ContextData.X64.PageTableBase != (UINT64)AsmReadCr3 ());
 }
 
 /**

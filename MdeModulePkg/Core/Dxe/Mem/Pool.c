@@ -218,6 +218,7 @@ CoreInternalAllocatePool (
   )
 {
   BOOLEAN     NeedGuard;
+  // EFI_STATUS  Status;
 
   //
   // If it's not a valid type, fail it
@@ -247,6 +248,10 @@ CoreInternalAllocatePool (
   //
   // Acquire the memory lock and make the allocation
   //
+  // Status = CoreAcquireSpinLockOrFail (&mPoolMemoryLock, __FILE__, __LINE__);
+  // if (EFI_ERROR (Status)) {
+  //   return EFI_OUT_OF_RESOURCES;
+  // }
   CoreAcquireSpinLock (&mPoolMemoryLock, __FILE__, __LINE__);
   *Buffer = CoreAllocatePoolI (PoolType, Size, NeedGuard);
   CoreReleaseSpinLock (&mPoolMemoryLock);
@@ -316,7 +321,12 @@ CoreAllocatePoolPagesI (
   )
 {
   VOID        *Buffer;
+  // EFI_STATUS  Status;
 
+  // Status = CoreAcquireSpinLockOrFail (&gMemoryLock, __FILE__, __LINE__);
+  // if (EFI_ERROR (Status)) {
+  //   return NULL;
+  // }
   CoreAcquireSpinLock (&gMemoryLock, __FILE__, __LINE__);
   Buffer = CoreAllocatePoolPages (PoolType, NoPages, Granularity, NeedGuard);
   CoreReleaseMemoryLock ();

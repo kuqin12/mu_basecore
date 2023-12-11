@@ -600,6 +600,11 @@ CoreLocateProtocol (
   //
   // Lock the protocol database
   //
+  // Status = CoreAcquireSpinLockOrFail (&gProtocolDatabaseLock, __FILE__, __LINE__);
+  // if (EFI_ERROR (Status)) {
+  //   DEBUG ((DEBUG_ERROR, "CoreLocateProtocol: Failed to acquire lock %g - %x!!!\n", Protocol, RETURN_ADDRESS (0)));
+  //   return EFI_ACCESS_DENIED;
+  // }
   CoreAcquireSpinLock (&gProtocolDatabaseLock, __FILE__, __LINE__);
 
   mEfiLocateHandleRequest += 1;

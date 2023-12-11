@@ -153,6 +153,48 @@ CoreAcquireSpinLock (
 //  DEBUG ((EFI_D_INFO, "Spinlock %lX acquired by CPU %d\n", DebugLock, CpuId));
 }
 
+EFI_STATUS
+CoreAcquireSpinLockOrFail (
+  IN EFI_DEBUG_SPIN_LOCK  *DebugLock,
+  IN CONST CHAR8          *OwnerFile,
+  IN UINTN                Line
+  )
+{
+  UINT32      CpuId = 0;
+  BOOLEAN     IsBsp = TRUE;
+  EFI_TPL     OriginalTpl;
+
+  if (gThreading != NULL) {
+    gThreading->IdentifyCpu (&CpuId, &IsBsp);
+
+    if (DebugLock->CpuId == CpuId) {
+      //
+      // Already acquired by this CPU
+      //
+      return EFI_ACCESS_DENIED;
+    }
+  }
+
+  OriginalTpl = CoreRaiseTpl (TPL_HIGH_LEVEL);
+
+  if (!AcquireSpinLockOrFail (&DebugLock->Lock)) {
+//    DEBUG ((EFI_D_ERROR, "--- Deadlock detected.---\nLock %lX is acquired by: [CPU %d] %a:%d\nWants to acquire: [CPU %d] %a:%d\n",
+//            DebugLock, DebugLock->CpuId, DebugLock->OwnerFile, DebugLock->Line,
+//            CpuId, OwnerFile, Line));
+
+    return EFI_ACCESS_DENIED;
+  }
+
+  DebugLock->OwnerTpl = OriginalTpl;
+  CoreRestoreTpl (DebugLock->Tpl);
+  DebugLock->Line = Line;
+  DebugLock->OwnerFile = OwnerFile;
+  DebugLock->CpuId = CpuId;
+//  DEBUG ((EFI_D_INFO, "Spinlock %lX acquired by CPU %d\n", DebugLock, CpuId));
+
+  return EFI_SUCCESS;
+}
+
 VOID
 CoreReleaseSpinLock (
   IN EFI_DEBUG_SPIN_LOCK  *DebugLock

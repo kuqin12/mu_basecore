@@ -2921,7 +2921,14 @@ VOID
 CoreReleaseSpinLock (
   IN EFI_DEBUG_SPIN_LOCK  *Lock
   );
-  
+
+EFI_STATUS
+CoreAcquireSpinLockOrFail (
+  IN EFI_DEBUG_SPIN_LOCK  *DebugLock,
+  IN CONST CHAR8          *OwnerFile,
+  IN UINTN                Line
+  );
+
 UINT64
 EFIAPI
 CoreCurrentSystemTime (
