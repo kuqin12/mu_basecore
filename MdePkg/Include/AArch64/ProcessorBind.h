@@ -187,9 +187,14 @@ typedef INT64 INTN;
 ///
 #define ASM_GLOBAL  .globl
 
+  #ifndef __clang__
 #define GCC_ASM_EXPORT(func__)  \
          .global  _CONCATENATE (__USER_LABEL_PREFIX__, func__)    ;\
          .type ASM_PFX(func__), %function
+  #else
+#define GCC_ASM_EXPORT(func__)  \
+         .global  _CONCATENATE (__USER_LABEL_PREFIX__, func__)
+  #endif
 
 #define GCC_ASM_IMPORT(func__)  \
          .extern  _CONCATENATE (__USER_LABEL_PREFIX__, func__)
