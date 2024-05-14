@@ -34,6 +34,7 @@ __memset (
 // object was pulled into the link due to the definitions below. So make
 // our memset() 'weak' to let the other implementation take precedence.
 //
+#ifndef __clang__
 __attribute__ ((__weak__, __alias__ ("__memset")))
 void *
 memset (
@@ -41,6 +42,20 @@ memset (
   int     c,
   size_t  n
   );
+
+#else
+__attribute__ ((__weak__))
+void *
+memset (
+  void    *dest,
+  int     c,
+  size_t  n
+  )
+{
+  return __memset (dest, c, n);
+}
+
+#endif
 
 #ifdef __arm__
 

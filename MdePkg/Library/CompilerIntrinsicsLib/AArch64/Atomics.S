@@ -32,12 +32,16 @@
         .macro          fn_start, name:req
         .section        .text.\name
         .globl          \name
+#ifndef __clang__
         .type           \name, %function
+#endif
 \name\():
         .endm
 
         .macro          fn_end, name:req
+#ifndef __clang__
         .size           \name, . - \name
+#endif
         .endm
 
         /*
