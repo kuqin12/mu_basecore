@@ -49,6 +49,7 @@
 #   StandaloneMmMmuLib
 #   ArmSvcLib
 #   ArmTransferListLib
+#   ArmFfaLib
 # MU_CHANGE [END] - Remove ARM from this lib, since it requires too much from ArmPkg.
 
 [Guids]
@@ -63,6 +64,7 @@
 
 # [Protocols.ARM, Protocols.AARCH64]
 #   gEdkiiPiMmCpuDriverEpProtocolGuid
+  gEfiMmCommunication2ProtocolGuid
 
 # [FeaturePcd.ARM, FeaturePcd.AARCH64]
 #   gArmTokenSpaceGuid.PcdFfaEnable
