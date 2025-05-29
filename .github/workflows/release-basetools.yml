@@ -130,3 +130,9 @@ jobs:
         run: |
           gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/basetools-*.zip
           gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/basetools-*.tar.gz
+
+      - name: Upload Compressed Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: basetools-compressed
+          path: ${{ runner.temp }}/basetools-*.tar.gz
