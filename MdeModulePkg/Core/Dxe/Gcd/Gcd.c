@@ -2302,6 +2302,7 @@ CoreInitializeMemoryServices (
   EFI_HOB_GUID_TYPE            *GuidHob;
   UINT32                       ReservedCodePageNumber;
   UINT64                       MinimalMemorySizeNeeded;
+  EFI_MEMORY_TYPE_INFORMATION  TempMemoryTypeInformation;
 
   //
   // Point at the first HOB.  This must be the PHIT HOB.
@@ -2350,6 +2351,32 @@ CoreInitializeMemoryServices (
     DataSize                 = GET_GUID_HOB_DATA_SIZE (GuidHob);
     if ((EfiMemoryTypeInformation != NULL) && (DataSize > 0) && (DataSize <= (EfiMaxMemoryType + 1) * sizeof (EFI_MEMORY_TYPE_INFORMATION))) {
       CopyMem (&gMemoryTypeInformation, EfiMemoryTypeInformation, DataSize);
+      for (UINTN idx = 0; idx < DataSize / sizeof (gMemoryTypeInformation[0]); idx++) {
+        DEBUG ((DEBUG_INFO, "MemoryTypeInfo[%02d]: Type=%02d, NumberOfPages=%08x, Granularity=%08x\n",
+          idx,
+          gMemoryTypeInformation[idx].Type,
+          gMemoryTypeInformation[idx].NumberOfPages
+          ));
+      }
+      // Sort the gMemoryTypeInformation[] array by the granularity field in descending order.
+      // So that we can prevent the smaller granularity memory type in between larger granularity
+      // memory types from fragmenting the memory map.
+      // Note that the EfiMaxMemoryType entry is not included in the sort.
+      QuickSort (
+        gMemoryTypeInformation,
+        DataSize / sizeof (gMemoryTypeInformation[0]) - 1,
+        sizeof (gMemoryTypeInformation[0]),
+        CompareMemTypeInfoByAlignment,
+        &TempMemoryTypeInformation
+        );
+
+      for (UINTN idx = 0; idx < DataSize / sizeof (gMemoryTypeInformation[0]); idx++) {
+        DEBUG ((DEBUG_INFO, "MemoryTypeInfo[%02d]: Type=%02d, NumberOfPages=%08x, Granularity=%08x\n",
+          idx,
+          gMemoryTypeInformation[idx].Type,
+          gMemoryTypeInformation[idx].NumberOfPages
+          ));
+      }
 
       //
       // Look for Resource Descriptor HOB with a ResourceType of System Memory
