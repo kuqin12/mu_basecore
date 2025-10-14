@@ -2261,6 +2261,29 @@ FindLargestFreeRegion (
   }
 }
 
+STATIC
+INTN
+CompareMemoryTypeInfo (
+  IN CONST VOID  *A,
+  IN CONST VOID  *B
+  )
+{
+  EFI_MEMORY_TYPE_INFORMATION  *InfoA;
+  EFI_MEMORY_TYPE_INFORMATION  *InfoB;
+
+  InfoA = (EFI_MEMORY_TYPE_INFORMATION *)A;
+  InfoB = (EFI_MEMORY_TYPE_INFORMATION *)B;
+
+  // compare based on type
+  if (InfoA->Type < InfoB->Type) {
+    return 1;
+  } else if (InfoA->Type > InfoB->Type) {
+    return -1;
+  } else {
+    return 0;
+  }
+}
+
 /**
   External function. Initializes memory services based on the memory
   descriptor HOBs.  This function is responsible for priming the memory
@@ -2302,6 +2325,7 @@ CoreInitializeMemoryServices (
   EFI_HOB_GUID_TYPE            *GuidHob;
   UINT32                       ReservedCodePageNumber;
   UINT64                       MinimalMemorySizeNeeded;
+  EFI_MEMORY_TYPE_INFORMATION  Dummy;
 
   //
   // Point at the first HOB.  This must be the PHIT HOB.
@@ -2350,6 +2374,24 @@ CoreInitializeMemoryServices (
     DataSize                 = GET_GUID_HOB_DATA_SIZE (GuidHob);
     if ((EfiMemoryTypeInformation != NULL) && (DataSize > 0) && (DataSize <= (EfiMaxMemoryType + 1) * sizeof (EFI_MEMORY_TYPE_INFORMATION))) {
       CopyMem (&gMemoryTypeInformation, EfiMemoryTypeInformation, DataSize);
+
+      DEBUG ((DEBUG_INFO, "Memory Type Information HOB:\n"));
+      for (Count = 0; Count < DataSize / sizeof (EFI_MEMORY_TYPE_INFORMATION); Count++) {
+        DEBUG ((DEBUG_INFO, "  Type=%d, NumberOfPages=%ld\n", gMemoryTypeInformation[Count].Type, gMemoryTypeInformation[Count].NumberOfPages));
+      }
+
+      QuickSort (
+        (VOID *)gMemoryTypeInformation,
+        DataSize / sizeof (EFI_MEMORY_TYPE_INFORMATION) - 1,
+        sizeof (EFI_MEMORY_TYPE_INFORMATION),
+        CompareMemoryTypeInfo,
+        &Dummy
+        );
+
+      DEBUG ((DEBUG_INFO, "Memory Type Information HOB:\n"));
+      for (Count = 0; Count < DataSize / sizeof (EFI_MEMORY_TYPE_INFORMATION); Count++) {
+        DEBUG ((DEBUG_INFO, "  Type=%d, NumberOfPages=%ld\n", gMemoryTypeInformation[Count].Type, gMemoryTypeInformation[Count].NumberOfPages));
+      }
 
       //
       // Look for Resource Descriptor HOB with a ResourceType of System Memory
