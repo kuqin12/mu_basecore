@@ -66,6 +66,26 @@ EFI_MEMORY_TYPE_STATISTICS  mMemoryTypeStatistics[EfiMaxMemoryType + 1] = {
   { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiMaxMemoryType, FALSE, FALSE }   // EfiMaxMemoryType
 };
 
+EFI_MEMORY_TYPE_STATISTICS  mMemoryTypeStatisticsSortedByAddress[EfiMaxMemoryType + 1] = {
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiReservedMemoryType,      TRUE,  FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiLoaderCode,              FALSE, FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiLoaderData,              FALSE, FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiBootServicesCode,        FALSE, FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiBootServicesData,        FALSE, FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiRuntimeServicesCode,     TRUE,  TRUE  },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiRuntimeServicesData,     TRUE,  TRUE  },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiConventionalMemory,      FALSE, FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiUnusableMemory,          FALSE, FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiACPIReclaimMemory,       TRUE,  FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiACPIMemoryNVS,           TRUE,  FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiMemoryMappedIO,          FALSE, FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiMemoryMappedIOPortSpace, FALSE, FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiPalCode,                 TRUE,  TRUE  },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiPersistentMemory,        FALSE, FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiUnacceptedMemoryType,    TRUE,  FALSE },
+  { 0, MAX_ALLOC_ADDRESS, 0, 0, EfiMaxMemoryType,           FALSE, FALSE }
+};
+
 EFI_PHYSICAL_ADDRESS  mDefaultMaximumAddress = MAX_ALLOC_ADDRESS;
 EFI_PHYSICAL_ADDRESS  mDefaultBaseAddress    = MAX_ALLOC_ADDRESS;
 
@@ -249,6 +269,24 @@ GetBucketMemoryType (
   return BucketType;
 }
 
+/**
+  Internal function. Splits an incoming memory range into smaller ranges based
+  on the bin boundaries defined in mMemoryTypeStatistics[].
+
+  @param  Type                   The type of memory range to add
+  @param  Start                  The starting address in the memory range Must be
+                                 paged aligned
+  @param  End                    The last address in the range Must be the last
+                                 byte of a page
+  @param  Attribute              The attributes of the memory range to add
+  @param  MemoryDescriptors      Output array to hold the split memory descriptors
+  @param  MemoryDescriptorCount  On input, the size of the MemoryDescriptors array.
+                                 On output, the number of descriptors filled in.
+
+  @return EFI_SUCCESS if the operation was successful.
+          EFI_INVALID_PARAMETER if the input parameters are invalid.
+          EFI_BUFFER_TOO_SMALL if the output array is not large enough.
+**/
 EFI_STATUS
 SplitIncomingRange (
   IN EFI_MEMORY_TYPE         Type,
@@ -280,21 +318,19 @@ SplitIncomingRange (
     // region is fully contained within a bucket, which makes the merging logic below
     // easier to handle.
     //
-    if ((mMemoryTypeStatistics[Index].BaseAddress == 0) || (mMemoryTypeStatistics[Index].Special == FALSE)) {
+    if ((mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress == 0) || (mMemoryTypeStatisticsSortedByAddress[Index].Special == FALSE)) {
       // We have reached the end of the valid buckets
       continue;
     }
 
-    if (MemDescCount >= *MemoryDescriptorCount) {
-      // We have reached the maximum number of memory descriptors that can be returned
-      Status = EFI_BUFFER_TOO_SMALL;
-      DEBUG ((DEBUG_ERROR, "%a: too many sub-regions for %lx - %lx\n", __func__, Start, End));
-      return Status;
-    }
+    // Note that the mMemoryTypeStatisticsSortedByAddress[] array is sorted by BaseAddress
+    if (Curr < mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress) {
+      if (End < mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress) {
+        if (MemDescCount >= *MemoryDescriptorCount) {
+          Status = EFI_BUFFER_TOO_SMALL;
+          return Status;
+        }
 
-    // Note that the mMemoryTypeStatistics[] array is sorted by BaseAddress
-    if (Curr < mMemoryTypeStatistics[Index].BaseAddress) {
-      if (End < mMemoryTypeStatistics[Index].BaseAddress) {
         // The incoming region is before this bucket, so just add this region
         MemoryDescriptors[MemDescCount].Type          = Type;
         MemoryDescriptors[MemDescCount].PhysicalStart = Curr;
@@ -305,19 +341,30 @@ SplitIncomingRange (
 
         Curr = End + 1;
         break;
-      } else if (End <= mMemoryTypeStatistics[Index].MaximumAddress) {
+      } else if (End <= mMemoryTypeStatisticsSortedByAddress[Index].MaximumAddress) {
+        if (MemDescCount >= *MemoryDescriptorCount) {
+          Status = EFI_BUFFER_TOO_SMALL;
+          return Status;
+        }
+
         // The incoming region is fully contained within the bucket
         MemoryDescriptors[MemDescCount].Type          = Type;
         MemoryDescriptors[MemDescCount].PhysicalStart = Curr;
-        MemoryDescriptors[MemDescCount].NumberOfPages = EFI_SIZE_TO_PAGES (mMemoryTypeStatistics[Index].BaseAddress - Curr);
+        MemoryDescriptors[MemDescCount].NumberOfPages = EFI_SIZE_TO_PAGES (mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress - Curr);
         MemoryDescriptors[MemDescCount].VirtualStart  = 0;
         MemoryDescriptors[MemDescCount].Attribute     = Attribute;
         MemDescCount++;
 
-        Curr = mMemoryTypeStatistics[Index].BaseAddress;
+        Curr = mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress;
         if (Curr == End) {
           Break = TRUE;
           break;
+        }
+
+
+        if (MemDescCount >= *MemoryDescriptorCount) {
+          Status = EFI_BUFFER_TOO_SMALL;
+          return Status;
         }
 
         MemoryDescriptors[MemDescCount].Type          = Type;
@@ -331,32 +378,37 @@ SplitIncomingRange (
 
         break;
       } else {
+        if (MemDescCount >= ((*MemoryDescriptorCount) - 1)) {
+          Status = EFI_BUFFER_TOO_SMALL;
+          return Status;
+        }
+
         MemoryDescriptors[MemDescCount].Type          = Type;
         MemoryDescriptors[MemDescCount].PhysicalStart = Curr;
-        MemoryDescriptors[MemDescCount].NumberOfPages = EFI_SIZE_TO_PAGES (mMemoryTypeStatistics[Index].BaseAddress - Curr);
+        MemoryDescriptors[MemDescCount].NumberOfPages = EFI_SIZE_TO_PAGES (mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress - Curr);
         MemoryDescriptors[MemDescCount].VirtualStart  = 0;
         MemoryDescriptors[MemDescCount].Attribute     = Attribute;
         MemDescCount++;
 
         // The incoming region overlaps the entire bucket
         MemoryDescriptors[MemDescCount].Type          = Type;
-        MemoryDescriptors[MemDescCount].PhysicalStart = mMemoryTypeStatistics[Index].BaseAddress;
-        MemoryDescriptors[MemDescCount].NumberOfPages = mMemoryTypeStatistics[Index].NumberOfPages;
+        MemoryDescriptors[MemDescCount].PhysicalStart = mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress;
+        MemoryDescriptors[MemDescCount].NumberOfPages = mMemoryTypeStatisticsSortedByAddress[Index].NumberOfPages;
         MemoryDescriptors[MemDescCount].VirtualStart  = 0;
         MemoryDescriptors[MemDescCount].Attribute     = Attribute;
         MemDescCount++;
 
-        Curr = mMemoryTypeStatistics[Index].MaximumAddress + 1;
+        Curr = mMemoryTypeStatisticsSortedByAddress[Index].MaximumAddress + 1;
         if (Curr == End) {
           Break = TRUE;
           break;
         }
       }
-    } else if ((Curr >= mMemoryTypeStatistics[Index].BaseAddress) &&
-               (Curr <= mMemoryTypeStatistics[Index].MaximumAddress))
+    } else if ((Curr >= mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress) &&
+               (Curr <= mMemoryTypeStatisticsSortedByAddress[Index].MaximumAddress))
     {
       // The incoming region is fully within the bucket, so just continue
-      if (End <= mMemoryTypeStatistics[Index].MaximumAddress) {
+      if (End <= mMemoryTypeStatisticsSortedByAddress[Index].MaximumAddress) {
         // The incoming region is fully contained within the bucket
         // Check if curr == end to avoid an overflow in the calculation of number of pages
         if (Curr == End) {
@@ -364,6 +416,11 @@ SplitIncomingRange (
           break;
         }
 
+        if (MemDescCount >= *MemoryDescriptorCount) {
+          Status = EFI_BUFFER_TOO_SMALL;
+          return Status;
+        }
+
         MemoryDescriptors[MemDescCount].Type          = Type;
         MemoryDescriptors[MemDescCount].PhysicalStart = Curr;
         MemoryDescriptors[MemDescCount].NumberOfPages = EFI_SIZE_TO_PAGES (End - Curr + 1);
@@ -375,15 +432,20 @@ SplitIncomingRange (
 
         break;
       } else {
+        if (MemDescCount >= *MemoryDescriptorCount) {
+          Status = EFI_BUFFER_TOO_SMALL;
+          return Status;
+        }
+
         // The incoming region overlaps the end of the bucket, so break it here
         MemoryDescriptors[MemDescCount].Type          = Type;
         MemoryDescriptors[MemDescCount].PhysicalStart = Curr;
-        MemoryDescriptors[MemDescCount].NumberOfPages = EFI_SIZE_TO_PAGES (mMemoryTypeStatistics[Index].MaximumAddress - Curr + 1);
+        MemoryDescriptors[MemDescCount].NumberOfPages = EFI_SIZE_TO_PAGES (mMemoryTypeStatisticsSortedByAddress[Index].MaximumAddress - Curr + 1);
         MemoryDescriptors[MemDescCount].VirtualStart  = 0;
         MemoryDescriptors[MemDescCount].Attribute     = Attribute;
         MemDescCount++;
 
-        Curr = mMemoryTypeStatistics[Index].MaximumAddress + 1;
+        Curr = mMemoryTypeStatisticsSortedByAddress[Index].MaximumAddress + 1;
         if (Curr == End) {
           Break = TRUE;
           break;
@@ -397,6 +459,11 @@ SplitIncomingRange (
 
   // If we have not processed the entire incoming region, add the remaining part as a single region
   if (!Break && (Curr <= End)) {
+    if (MemDescCount >= *MemoryDescriptorCount) {
+      Status = EFI_BUFFER_TOO_SMALL;
+      return Status;
+    }
+
     MemoryDescriptors[MemDescCount].Type          = Type;
     MemoryDescriptors[MemDescCount].PhysicalStart = Curr;
     MemoryDescriptors[MemDescCount].NumberOfPages = EFI_SIZE_TO_PAGES (End - Curr + 1);
@@ -405,19 +472,6 @@ SplitIncomingRange (
     MemDescCount++;
   }
 
-  DEBUG ((DEBUG_ERROR, "%a: %d sub-regions for %lx - %lx\n", __func__, MemDescCount, Start, End));
-  ASSERT (MemDescCount > 0);
-  ASSERT (MemDescCount < (*MemoryDescriptorCount));
-  for (Index = 0; Index < MemDescCount; Index++) {
-    DEBUG ((
-      DEBUG_ERROR,
-      "  %d: %lx - %lx (%d pages)\n",
-      Index,
-      MemoryDescriptors[Index].PhysicalStart,
-      MemoryDescriptors[Index].PhysicalStart + LShiftU64 (MemoryDescriptors[Index].NumberOfPages, EFI_PAGE_SHIFT) - 1,
-      MemoryDescriptors[Index].NumberOfPages
-      ));
-  }
   *MemoryDescriptorCount = MemDescCount;
 
   return EFI_SUCCESS;
@@ -470,6 +524,14 @@ CoreAddRange (
     DEBUG ((DEBUG_ERROR, "%a: invalid range %lx - %lx - %r\n", __func__, Start, End, Status));
     ASSERT (FALSE);
     return;
+  } else {
+    DEBUG_CODE_BEGIN ();
+    for (Index = 0; Index < MemDescCount; Index++) {
+      DEBUG ((DEBUG_PAGE, "%a: split %lx - %lx\n", __func__,
+        MemDesc[Index].PhysicalStart,
+        MemDesc[Index].PhysicalStart + LShiftU64 (MemDesc[Index].NumberOfPages, EFI_PAGE_SHIFT) - 1));
+    }
+    DEBUG_CODE_END ();
   }
 
   // MU_CHANGE ENDS
@@ -538,6 +600,13 @@ CoreAddRange (
       }
 
       // MU_CHANGE STARTS: Add check to merge memory regions of the bucket type
+      // Add checks for duplicate memory regions
+      if (Entry->Start == Start && Entry->End == End) {
+        DEBUG ((DEBUG_ERROR, "%a: duplicate range %lx - %lx of type %d\n", __func__, Start, End, Type));
+        ASSERT (FALSE);
+        continue;
+      }
+
       // We need to make sure we can only merge with the same type as the merge type
       if (MergeType != GetBucketMemoryType (Entry->Start, Entry->End)) {
         continue;
@@ -569,8 +638,6 @@ CoreAddRange (
 
     mMapDepth += 1;
     ASSERT (mMapDepth < MAX_MAP_DEPTH);
-
-    CoreFreeMemoryMapStack ();
   }
 
   return;
@@ -978,6 +1045,38 @@ CoreSetMemoryTypeInformationRange (
   mMemoryTypeInformationInitialized = TRUE;
 }
 
+INTN
+EFIAPI
+CompareMemoryTypeStats (
+  IN CONST VOID  *A,
+  IN CONST VOID  *B
+  )
+{
+  EFI_MEMORY_TYPE_STATISTICS  *StatsA;
+  EFI_MEMORY_TYPE_STATISTICS  *StatsB;
+
+  StatsA = (EFI_MEMORY_TYPE_STATISTICS *)A;
+  StatsB = (EFI_MEMORY_TYPE_STATISTICS *)B;
+
+  // If the number of pages is 0, push it to the end of the list
+  if (StatsA->NumberOfPages == 0 && StatsB->NumberOfPages == 0) {
+    return 0;
+  } else if (StatsA->NumberOfPages == 0) {
+    return 1;
+  } else if (StatsB->NumberOfPages == 0) {
+    return -1;
+  }
+
+  // Otherwise, sort by base address
+  if (StatsA->BaseAddress < StatsB->BaseAddress) {
+    return -1;
+  } else if (StatsA->BaseAddress > StatsB->BaseAddress) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 /**
   Called to initialize the memory map and add descriptors to
   the current descriptor list.
@@ -1005,6 +1104,7 @@ CoreAddMemoryDescriptor (
   EFI_STATUS            Status;
   UINTN                 Index;
   UINTN                 FreeIndex;
+  EFI_MEMORY_TYPE_STATISTICS  Dummy;
 
   if ((Start & EFI_PAGE_MASK) != 0) {
     return;
@@ -1058,12 +1158,20 @@ CoreAddMemoryDescriptor (
       // Allocate pages for the current memory type from the top of available memory
       //
       mMemoryTypeStatistics[Type].BaseAddress = MAX_ALLOC_ADDRESS;
+      DEBUG ((DEBUG_PAGE, "Allocating pages for memory type %d - %u pages\n",
+        Type,
+        gMemoryTypeInformation[Index].NumberOfPages));
       Status                                  = CoreAllocatePages (
                                                   AllocateMaxAddress,
                                                   Type,
                                                   gMemoryTypeInformation[Index].NumberOfPages,
                                                   &mMemoryTypeStatistics[Type].BaseAddress
                                                   );
+                                                  DEBUG ((DEBUG_PAGE, "Allocating %u pages for memory type %d at address %lx - %r\n",
+                                                gMemoryTypeInformation[Index].NumberOfPages,
+                                                Type,
+                                                mMemoryTypeStatistics[Type].BaseAddress,
+                                                Status));
       if (EFI_ERROR (Status)) {
         //
         // If an error occurs allocating the pages for the current memory type, then
@@ -1086,6 +1194,8 @@ CoreAddMemoryDescriptor (
               );
             mMemoryTypeStatistics[Type].BaseAddress    = 0;
             mMemoryTypeStatistics[Type].MaximumAddress = MAX_ALLOC_ADDRESS;
+            mMemoryTypeStatisticsSortedByAddress[Type].BaseAddress = 0;
+            mMemoryTypeStatisticsSortedByAddress[Type].MaximumAddress = MAX_ALLOC_ADDRESS;
           }
         }
 
@@ -1098,6 +1208,14 @@ CoreAddMemoryDescriptor (
       mMemoryTypeStatistics[Type].MaximumAddress =
         mMemoryTypeStatistics[Type].BaseAddress +
         LShiftU64 (gMemoryTypeInformation[Index].NumberOfPages, EFI_PAGE_SHIFT) - 1;
+
+      //
+      // Save the same information in the sorted array
+      //
+      mMemoryTypeStatisticsSortedByAddress[Type].BaseAddress = 
+        mMemoryTypeStatistics[Type].BaseAddress;
+      mMemoryTypeStatisticsSortedByAddress[Type].MaximumAddress = 
+        mMemoryTypeStatistics[Type].MaximumAddress;
 
       //
       // If the current base address is the lowest address so far, then update the default
@@ -1128,15 +1246,39 @@ CoreAddMemoryDescriptor (
       // Activate the statistics so that the free page operation can be performed
       // with valid bucket information.
       mMemoryTypeStatistics[Type].NumberOfPages   = gMemoryTypeInformation[Index].NumberOfPages;
+      mMemoryTypeStatisticsSortedByAddress[Type].NumberOfPages = gMemoryTypeInformation[Index].NumberOfPages;
       gMemoryTypeInformation[Index].NumberOfPages = 0;
-      CoreFreePages (
-        mMemoryTypeStatistics[Type].BaseAddress,
-        (UINTN)mMemoryTypeStatistics[Type].NumberOfPages
-        );
       // TODO: add check that these are next to each other
       // TODO: check to make sure it monotonically increases
       // mMemoryTypeStatistics[Type].NumberOfPages   = gMemoryTypeInformation[Index].NumberOfPages;
       // gMemoryTypeInformation[Index].NumberOfPages = 0;
+      // MU_CHANGE Ends
+    }
+  }
+
+  QuickSort (
+    (VOID *)mMemoryTypeStatisticsSortedByAddress,
+    sizeof (mMemoryTypeStatisticsSortedByAddress) / sizeof (EFI_MEMORY_TYPE_STATISTICS),
+    sizeof (EFI_MEMORY_TYPE_STATISTICS),
+    CompareMemoryTypeStats,
+    &Dummy
+    );
+
+  for (Index = 0; gMemoryTypeInformation[Index].Type != EfiMaxMemoryType; Index++) {
+    //
+    // Make sure the memory type in the gMemoryTypeInformation[] array is valid
+    //
+    Type = (EFI_MEMORY_TYPE)(gMemoryTypeInformation[Index].Type);
+    if ((UINT32)Type > EfiMaxMemoryType) {
+      continue;
+    }
+
+    if (mMemoryTypeStatistics[Type].NumberOfPages != 0) {
+      // MU_CHANGE Starts
+      CoreFreePages (
+        mMemoryTypeStatistics[Type].BaseAddress,
+        (UINTN)mMemoryTypeStatistics[Type].NumberOfPages
+        );
       // MU_CHANGE Ends
     }
   }
