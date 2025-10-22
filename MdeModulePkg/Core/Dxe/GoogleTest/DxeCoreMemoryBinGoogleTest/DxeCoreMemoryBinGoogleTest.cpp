@@ -67,19 +67,22 @@ extern "C" {
   }
 
   VOID
-  CoreReleaseLock (
-    IN EFI_LOCK  *Lock
+  EFIAPI
+  CoreRestoreTpl (
+    IN EFI_TPL  NewTpl
     )
   {
     // Implementation of the function
   }
 
-  VOID
-  CoreAcquireLock (
-    IN EFI_LOCK  *Lock
+  EFI_TPL
+  EFIAPI
+  CoreRaiseTpl (
+    IN EFI_TPL  NewTpl
     )
   {
     // Implementation of the function
+    return NewTpl;
   }
 
   EFI_STATUS
@@ -150,7 +153,7 @@ extern "C" {
     UINT8  GuardType
     )
   {
-    return TRUE;
+    return FALSE;
   }
 
   VOID
@@ -167,7 +170,7 @@ extern "C" {
     IN EFI_ALLOCATE_TYPE  AllocateType
     )
   {
-    return TRUE;
+    return FALSE;
   }
 
   VOID
@@ -267,7 +270,7 @@ extern "C" {
   }
 
   EFI_LOAD_FIXED_ADDRESS_CONFIGURATION_TABLE  gLoadModuleAtFixAddressConfigurationTable = { 0, 0 };
-  extern EFI_MEMORY_TYPE_STATISTICS  mMemoryTypeStatistics[EfiMaxMemoryType + 1];
+  extern EFI_MEMORY_TYPE_STATISTICS  mMemoryTypeStatisticsSortedByAddress[EfiMaxMemoryType + 1];
 }
 
 using namespace testing;
@@ -283,25 +286,15 @@ protected:
   {
     EFI_PHYSICAL_ADDRESS  Start = SIZE_64KB;
 
-    // Initialize the mMemoryTypeStatistics array
+    // Initialize the mMemoryTypeStatisticsSortedByAddress array
     for (UINTN Index = 0; Index <= EfiMaxMemoryType; Index++) {
-      DEBUG ((
-      DEBUG_ERROR,
-      "%a: bucket %d: %lx - %lx, special: %d\n",
-      __func__,
-      Index,
-      mMemoryTypeStatistics[Index].BaseAddress,
-      mMemoryTypeStatistics[Index].MaximumAddress,
-      mMemoryTypeStatistics[Index].Special
-      ));
-      if (!mMemoryTypeStatistics[Index].Special) {
+      if (!mMemoryTypeStatisticsSortedByAddress[Index].Special) {
         continue;
       }
 
-
-      mMemoryTypeStatistics[Index].BaseAddress        = Start;
-      mMemoryTypeStatistics[Index].MaximumAddress     = Start + EFI_PAGE_SIZE - 1;
-      mMemoryTypeStatistics[Index].NumberOfPages      = 1;
+      mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress        = Start;
+      mMemoryTypeStatisticsSortedByAddress[Index].MaximumAddress     = Start + EFI_PAGE_SIZE - 1;
+      mMemoryTypeStatisticsSortedByAddress[Index].NumberOfPages      = 1;
 
       // The Special memory types are intentionally sparse
       Start += SIZE_64KB;
@@ -316,18 +309,6 @@ TEST_F (SplitIncomingRangeTest, AddRangeStandaloneBin) {
   EFI_MEMORY_DESCRIPTOR     MemDesc[MaxMemDescCount];
   UINTN                     MemDescCount = MaxMemDescCount;
   EFI_STATUS                Status;
-
-  for (UINTN Index = 0; Index < EfiMaxMemoryType; Index++) {
-    DEBUG ((
-      DEBUG_ERROR,
-      "%a: bucket %d: %lx - %lx, special: %d\n",
-      __func__,
-      Index,
-      mMemoryTypeStatistics[Index].BaseAddress,
-      mMemoryTypeStatistics[Index].MaximumAddress,
-      mMemoryTypeStatistics[Index].Special
-      ));
-  }
 
   Status = SplitIncomingRange (
              EfiBootServicesData,
