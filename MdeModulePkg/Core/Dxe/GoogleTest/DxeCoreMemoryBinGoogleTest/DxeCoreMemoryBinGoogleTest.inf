@@ -19,10 +19,13 @@
 #
 
 [Sources]
+  DxeCoreMemoryAddRangeGoogleTest.cpp
   DxeCoreMemoryBinGoogleTest.cpp
+  # DxeCoreMemoryMapGoogleTest.cpp
   ../../Mem/Page.c
   ../../Mem/MemData.c
   ../../DxeMain.h
+  ../../Library/Library.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -31,6 +34,7 @@
 
 [LibraryClasses]
   GoogleTestLib
+  BaseLib
 
 [Guids]
   gEfiEventMemoryMapChangeGuid
