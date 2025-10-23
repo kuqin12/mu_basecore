@@ -1158,20 +1158,12 @@ CoreAddMemoryDescriptor (
       // Allocate pages for the current memory type from the top of available memory
       //
       mMemoryTypeStatistics[Type].BaseAddress = MAX_ALLOC_ADDRESS;
-      DEBUG ((DEBUG_PAGE, "Allocating pages for memory type %d - %u pages\n",
-        Type,
-        gMemoryTypeInformation[Index].NumberOfPages));
       Status                                  = CoreAllocatePages (
                                                   AllocateMaxAddress,
                                                   Type,
                                                   gMemoryTypeInformation[Index].NumberOfPages,
                                                   &mMemoryTypeStatistics[Type].BaseAddress
                                                   );
-                                                  DEBUG ((DEBUG_PAGE, "Allocating %u pages for memory type %d at address %lx - %r\n",
-                                                gMemoryTypeInformation[Index].NumberOfPages,
-                                                Type,
-                                                mMemoryTypeStatistics[Type].BaseAddress,
-                                                Status));
       if (EFI_ERROR (Status)) {
         //
         // If an error occurs allocating the pages for the current memory type, then
@@ -1264,20 +1256,12 @@ CoreAddMemoryDescriptor (
     &Dummy
     );
 
-  for (Index = 0; gMemoryTypeInformation[Index].Type != EfiMaxMemoryType; Index++) {
-    //
-    // Make sure the memory type in the gMemoryTypeInformation[] array is valid
-    //
-    Type = (EFI_MEMORY_TYPE)(gMemoryTypeInformation[Index].Type);
-    if ((UINT32)Type > EfiMaxMemoryType) {
-      continue;
-    }
-
-    if (mMemoryTypeStatistics[Type].NumberOfPages != 0) {
+  for (Index = 0; Index < EfiMaxMemoryType; Index++) {
+    if (mMemoryTypeStatisticsSortedByAddress[Index].NumberOfPages != 0) {
       // MU_CHANGE Starts
       CoreFreePages (
-        mMemoryTypeStatistics[Type].BaseAddress,
-        (UINTN)mMemoryTypeStatistics[Type].NumberOfPages
+        mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress,
+        (UINTN)mMemoryTypeStatisticsSortedByAddress[Index].NumberOfPages
         );
       // MU_CHANGE Ends
     }
@@ -2703,10 +2687,50 @@ CoreGetMemoryMap (
     MemoryMap             = NEXT_MEMORY_DESCRIPTOR (MemoryMap, Size);
   }
 
-  MergeMemoryMap (MemoryMapStart, &BufferSize, Size);
-  MemoryMapEnd = (EFI_MEMORY_DESCRIPTOR *)((UINT8 *)MemoryMapStart + BufferSize);
+  EFI_MEMORY_DESCRIPTOR *MemoryMapTemp;
+  MemoryMapTemp = MemoryMapStart;
+  for (;
+       MemoryMapTemp < MemoryMapEnd;
+       MemoryMapTemp = NEXT_MEMORY_DESCRIPTOR (MemoryMapTemp, Size))
+  {
+    DEBUG ((
+      DEBUG_INFO,
+      "Type: %02x Start: %012lx NumPages: %08lx Attr: %lx\n",
+      MemoryMapTemp->Type,
+      MemoryMapTemp->PhysicalStart,
+      MemoryMapTemp->NumberOfPages,
+      MemoryMapTemp->Attribute
+      ));
+  }
 
+  MergeMemoryMap (MemoryMapStart, &BufferSize, Size);
+
+  MemoryMapTemp = MemoryMapStart;
+  for (;
+       MemoryMapTemp < MemoryMapEnd;
+       MemoryMapTemp = NEXT_MEMORY_DESCRIPTOR (MemoryMapTemp, Size))
+  {
+    DEBUG ((
+      DEBUG_INFO,
+      "Type: %02x Start: %012lx NumPages: %08lx Attr: %lx\n",
+      MemoryMapTemp->Type,
+      MemoryMapTemp->PhysicalStart,
+      MemoryMapTemp->NumberOfPages,
+      MemoryMapTemp->Attribute
+      ));
+  }
+  MemoryMapEnd = (EFI_MEMORY_DESCRIPTOR *)((UINT8 *)MemoryMapStart + BufferSize);
+  
   Status = EFI_SUCCESS;
+             DEBUG ((
+               DEBUG_ERROR,
+               "%a: CoreGetMemoryMap returned %r, BufferSize %lu %x - %r\n",
+               __func__,
+               Status,
+               BufferSize,
+               sizeof (EFI_MEMORY_DESCRIPTOR),
+               Status
+               ));
 
 Done:
   //

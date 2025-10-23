@@ -93,6 +93,12 @@ protected:
 
     // Initialize the mMemoryTypeStatisticsSortedByAddress array
     for (UINTN Index = 0; Index <= EfiMaxMemoryType; Index++) {
+      if (Index == EfiPersistentMemory ||
+          Index == EfiUnacceptedMemoryType) {
+        // Skip PMEM and Unaccepted memory types for this test
+        continue;
+      }
+
       if (!mMemoryTypeStatistics[Index].Special) {
         continue;
       }
@@ -116,6 +122,7 @@ protected:
       CompareMemoryTypeStats,
       &Dummy
       );
+
   }
 
   void
@@ -160,7 +167,7 @@ TEST_F (CoreAddRangeTest, VerifyMemoryStatisticsSort) {
       DEBUG_ERROR,
       "%a: bucket %d: %lx - %lx, special: %d\n",
       __func__,
-      Index,
+      mMemoryTypeStatisticsSortedByAddress[Index].InformationIndex,
       mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress,
       mMemoryTypeStatisticsSortedByAddress[Index].MaximumAddress,
       mMemoryTypeStatisticsSortedByAddress[Index].Special

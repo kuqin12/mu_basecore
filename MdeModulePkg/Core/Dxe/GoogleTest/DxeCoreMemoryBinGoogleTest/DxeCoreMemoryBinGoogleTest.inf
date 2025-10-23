@@ -19,9 +19,9 @@
 #
 
 [Sources]
-  DxeCoreMemoryAddRangeGoogleTest.cpp
+  DxeCoreAddRangeGoogleTest.cpp
   DxeCoreMemoryBinGoogleTest.cpp
-  # DxeCoreMemoryMapGoogleTest.cpp
+  DxeCoreGetMemoryMapGoogleTest.cpp
   ../../Mem/Page.c
   ../../Mem/MemData.c
   ../../DxeMain.h

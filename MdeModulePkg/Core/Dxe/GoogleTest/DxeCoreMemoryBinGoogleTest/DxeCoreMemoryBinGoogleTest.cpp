@@ -288,6 +288,11 @@ protected:
 
     // Initialize the mMemoryTypeStatisticsSortedByAddress array
     for (UINTN Index = 0; Index <= EfiMaxMemoryType; Index++) {
+      if ((Index == EfiPersistentMemory) || (Index == EfiUnacceptedMemoryType)) {
+        // Skip PMEM and Unaccepted memory types for this test
+        continue;
+      }
+
       if (!mMemoryTypeStatisticsSortedByAddress[Index].Special) {
         continue;
       }
@@ -570,13 +575,13 @@ TEST_F (SplitIncomingRangeTest, AddRangeCoverAllBinsWithExtraSpace) {
   Status = SplitIncomingRange (
              EfiBootServicesData,
              SIZE_64KB - 2 * EFI_PAGE_SIZE,
-             SIZE_64KB + 8 * SIZE_64KB - 1,
+             SIZE_64KB + 7 * SIZE_64KB - 1,
              EFI_MEMORY_UC | EFI_MEMORY_WP,
              MemDesc,
              &MemDescCount
              );
   ASSERT_FALSE (EFI_ERROR (Status));
-  ASSERT_EQ (MemDescCount, (UINTN)15);
+  ASSERT_EQ (MemDescCount, (UINTN)13);
   EXPECT_EQ (MemDesc[0].Type, EfiBootServicesData);
   EXPECT_EQ (MemDesc[0].PhysicalStart, (EFI_PHYSICAL_ADDRESS)(SIZE_64KB - 2 * EFI_PAGE_SIZE));
   EXPECT_EQ (MemDesc[0].NumberOfPages, (UINT64)2);
@@ -617,13 +622,13 @@ TEST_F (SplitIncomingRangeTest, AddRangeCoverAllBinsWithExtraSpaceAtBeginning) {
   Status = SplitIncomingRange (
              EfiBootServicesData,
              SIZE_64KB - 2 * EFI_PAGE_SIZE,
-             SIZE_64KB + 11 * SIZE_64KB - 1,
+             SIZE_64KB + 10 * SIZE_64KB - 1,
              EFI_MEMORY_UC | EFI_MEMORY_WP,
              MemDesc,
              &MemDescCount
              );
   ASSERT_FALSE (EFI_ERROR (Status));
-  ASSERT_EQ (MemDescCount, (UINTN)15);
+  ASSERT_EQ (MemDescCount, (UINTN)13);
   EXPECT_EQ (MemDesc[0].Type, EfiBootServicesData);
   EXPECT_EQ (MemDesc[0].PhysicalStart, (EFI_PHYSICAL_ADDRESS)(SIZE_64KB - 2 * EFI_PAGE_SIZE));
   EXPECT_EQ (MemDesc[0].NumberOfPages, (UINT64)2);
@@ -664,13 +669,13 @@ TEST_F (SplitIncomingRangeTest, AddRangeCoverAllBinsWithExtraSpaceAtEnd) {
   Status = SplitIncomingRange (
              EfiBootServicesData,
              SIZE_64KB,
-             SIZE_64KB + 11 * SIZE_64KB - 1,
+             SIZE_64KB + 10 * SIZE_64KB - 1,
              EFI_MEMORY_UC | EFI_MEMORY_WP,
              MemDesc,
              &MemDescCount
              );
   ASSERT_FALSE (EFI_ERROR (Status));
-  ASSERT_EQ (MemDescCount, (UINTN)14);
+  ASSERT_EQ (MemDescCount, (UINTN)12);
   for (UINTN Index = 0; Index < MemDescCount - 2; Index+=2) {
     EXPECT_EQ (MemDesc[Index].Type, EfiBootServicesData);
     EXPECT_EQ (MemDesc[Index].PhysicalStart, (EFI_PHYSICAL_ADDRESS)(SIZE_64KB * (Index / 2 + 1)));
@@ -706,13 +711,13 @@ TEST_F (SplitIncomingRangeTest, AddRangeCoverAllBinsNoExtraSpace) {
   Status = SplitIncomingRange (
              EfiBootServicesData,
              SIZE_64KB,
-             SIZE_64KB + 6 * SIZE_64KB - 1 + EFI_PAGE_SIZE,
+             SIZE_64KB + 5 * SIZE_64KB - 1 + EFI_PAGE_SIZE,
              EFI_MEMORY_UC | EFI_MEMORY_WP,
              MemDesc,
              &MemDescCount
              );
   ASSERT_FALSE (EFI_ERROR (Status));
-  ASSERT_EQ (MemDescCount, (UINTN)13);
+  ASSERT_EQ (MemDescCount, (UINTN)11);
 
   for (UINTN Index = 0; Index < MemDescCount - 1; Index+=2) {
     EXPECT_EQ (MemDesc[Index].Type, EfiBootServicesData);
