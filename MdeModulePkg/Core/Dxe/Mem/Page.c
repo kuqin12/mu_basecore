@@ -1157,13 +1157,12 @@ CoreAddMemoryDescriptor (
       //
       // Allocate pages for the current memory type from the top of available memory
       //
-      mMemoryTypeStatistics[Type].BaseAddress = MAX_ALLOC_ADDRESS;
-      Status                                  = CoreAllocatePages (
-                                                  AllocateMaxAddress,
-                                                  Type,
-                                                  gMemoryTypeInformation[Index].NumberOfPages,
-                                                  &mMemoryTypeStatistics[Type].BaseAddress
-                                                  );
+      Status = CoreAllocatePages (
+                 AllocateAnyPages,
+                 Type,
+                 gMemoryTypeInformation[Index].NumberOfPages,
+                 &mMemoryTypeStatistics[Type].BaseAddress
+                 );
       if (EFI_ERROR (Status)) {
         //
         // If an error occurs allocating the pages for the current memory type, then
