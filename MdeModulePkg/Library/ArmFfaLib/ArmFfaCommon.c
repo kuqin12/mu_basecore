@@ -23,7 +23,8 @@
 #include <Library/DebugLib.h>
 #include <Library/HobLib.h>
 #include <Library/PcdLib.h>
-#include <Library/TimerLib.h>  // MU_CHANGE: Handle FFA_YIELD with timeout
+#include <Library/TimerLib.h>   // MU_CHANGE: Handle FFA_YIELD with timeout
+#include <Library/SafeIntLib.h> // MU_CHANGE: Yield conversion from us to ns
 
 #include <IndustryStandard/ArmFfaSvc.h>
 #include <IndustryStandard/ArmFfaPartInfo.h>
@@ -548,12 +549,55 @@ ErrorHandler:
   return Status;
 }
 
+// MU_CHANGE - [BEGIN]
+
+/**
+ * Invoked by an endpoint to yield control back to the component
+ * that called it. This prevents long running transactions from
+ * being caught up in the secure world. Endpoint will need to be
+ * invoked with FFA_RUN after the specified timeout.
+ *
+ * @param [in]   TimeoutUs    The timeout indicating the time in which
+ *                            the endpoint is required to be run in
+ *                            microseconds.
+ *
+ * @return EFI_SUCCESS
+ * @return Other              Error
+ */
+EFI_STATUS
+EFIAPI
+ArmFfaLibYield (
+  IN  UINT64  TimeoutUs
+  )
+{
+  ARM_FFA_ARGS   FfaArgs;
+  UINT64         TimeoutNs;
+  RETURN_STATUS  ReturnStatus;
+
+  ZeroMem (&FfaArgs, sizeof (ARM_FFA_ARGS));
+
+  ReturnStatus = SafeUint64Mult (TimeoutUs, 1000, &TimeoutNs);
+  if (ReturnStatus != RETURN_SUCCESS) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  FfaArgs.Arg0 = ARM_FID_FFA_YIELD;
+  FfaArgs.Arg2 = (UINT32)TimeoutNs;
+  FfaArgs.Arg3 = (UINT32)(TimeoutNs >> 32);
+
+  ArmCallFfa (&FfaArgs);
+
+  return FfaArgsToEfiStatus (&FfaArgs);
+}
+
+// MU_CHANGE - [END]
+
 /**
   Restore the context which was interrupted with FFA_INTERRUPT (EFI_INTERRUPT_PENDING).
 
   @param [in]   PartId       Partition id
   @param [in]   CpuNumber    Cpu number in partition
-  @param [out]  CtxFfaArgs   Optional context of FFA_ARGS
+  @param [out]  DirectMsgArg return arguments for direct msg resp/resp2
 
   @retval EFI_SUCCESS
   @retval Other              Error
@@ -562,11 +606,12 @@ ErrorHandler:
 EFI_STATUS
 EFIAPI
 ArmFfaLibRun (
-  IN  UINT16        PartId,
-  IN  UINT16        CpuNumber,
-  OUT ARM_FFA_ARGS  *CtxFfaArgs OPTIONAL
+  IN  UINT16           PartId,
+  IN  UINT16           CpuNumber,
+  OUT DIRECT_MSG_ARGS  *DirectMsgArg OPTIONAL
   )
 {
+  EFI_STATUS    Status;
   ARM_FFA_ARGS  FfaArgs;
   EFI_STATUS    Status;
 
@@ -582,8 +627,31 @@ ArmFfaLibRun (
     return Status;
   }
 
-  if (CtxFfaArgs != NULL) {
-    CopyMem (CtxFfaArgs, &FfaArgs, sizeof (ARM_FFA_ARGS));
+  if (DirectMsgArg != NULL) {
+    ZeroMem (DirectMsgArg, sizeof (DIRECT_MSG_ARGS));
+
+    if (FfaArgs.Arg0 == ARM_FID_FFA_MSG_SEND_DIRECT_RESP) {
+      DirectMsgArg->Arg0 = FfaArgs.Arg3;
+      DirectMsgArg->Arg1 = FfaArgs.Arg4;
+      DirectMsgArg->Arg2 = FfaArgs.Arg5;
+      DirectMsgArg->Arg3 = FfaArgs.Arg6;
+      DirectMsgArg->Arg4 = FfaArgs.Arg7;
+    } else if (FfaArgs.Arg0 == ARM_FID_FFA_MSG_SEND_DIRECT_RESP2) {
+      DirectMsgArg->Arg0  = FfaArgs.Arg4;
+      DirectMsgArg->Arg1  = FfaArgs.Arg5;
+      DirectMsgArg->Arg2  = FfaArgs.Arg6;
+      DirectMsgArg->Arg3  = FfaArgs.Arg7;
+      DirectMsgArg->Arg4  = FfaArgs.Arg8;
+      DirectMsgArg->Arg5  = FfaArgs.Arg9;
+      DirectMsgArg->Arg6  = FfaArgs.Arg10;
+      DirectMsgArg->Arg7  = FfaArgs.Arg11;
+      DirectMsgArg->Arg8  = FfaArgs.Arg12;
+      DirectMsgArg->Arg9  = FfaArgs.Arg13;
+      DirectMsgArg->Arg10 = FfaArgs.Arg14;
+      DirectMsgArg->Arg11 = FfaArgs.Arg15;
+      DirectMsgArg->Arg12 = FfaArgs.Arg16;
+      DirectMsgArg->Arg13 = FfaArgs.Arg17;
+    }
   }
 
   return Status;

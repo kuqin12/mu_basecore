@@ -761,14 +761,9 @@ InitializeMpExceptionHandlers (
   }
 
   //
-  // Setup stack switch for Stack Guard feature.
+  // Setup stack switch for Stack Guard feature and separate AP GDTs.
   //
-  // MU_CHANGE START Update to use memory protection settings HOB
-  // if (PcdGetBool (PcdCpuStackGuard)) {
-  if (gDxeMps.CpuStackGuard) {
-    // MU_CHANGE END
-    InitializeMpExceptionStackSwitchHandlers ();
-  }
+  InitializeMpExceptionStackSwitchHandlers ();
 }
 
 /**

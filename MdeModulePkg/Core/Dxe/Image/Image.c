@@ -281,7 +281,9 @@ CoreInitializeImageServices (
   Status = ProtectUefiImage (&Image->Info, Image->LoadedImageDevicePath);
 
   // Omit EFI_NOT_READY as it just implies gCPU is not yet installed
-  if (EFI_ERROR (Status) && (Status != EFI_NOT_READY)) {
+  Status = (Status == EFI_NOT_READY) ? EFI_SUCCESS : Status;
+
+  if (EFI_ERROR (Status)) {
     REPORT_STATUS_CODE (
       EFI_ERROR_CODE | EFI_ERROR_MAJOR,
       (EFI_SOFTWARE_DXE_CORE | EFI_SW_DXE_CORE_EC_IMAGE_LOAD_FAILURE)

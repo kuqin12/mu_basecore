@@ -32,21 +32,17 @@ SaveVolatileRegisters (
   OUT CPU_VOLATILE_REGISTERS  *VolatileRegisters
   );
 
-// MU_CHANGE START: Spinlock RestoreVolatileRegisters
-
 /**
   Restore the volatile registers following INIT IPI.
 
   @param[in]  VolatileRegisters   Pointer to volatile resisters
-  @param[in]  MpLock              Pointer to spin lock to synchronize access to GDT
+  @param[in]  IsRestoreDr         TRUE:  Restore DRx if supported
+                                  FALSE: Do not restore DRx
 **/
 VOID
 RestoreVolatileRegisters (
-  IN CPU_VOLATILE_REGISTERS  *VolatileRegisters,
-  IN SPIN_LOCK               *MpLock
+  IN CPU_VOLATILE_REGISTERS  *VolatileRegisters
   );
-
-// MU_CHANGE END: Spinlock RestoreVolatileRegisters
 
 /**
   The function will check if BSP Execute Disable is enabled.
@@ -121,7 +117,7 @@ FutureBSPProc (
   //
   SaveVolatileRegisters (&DataInHob->APInfo.VolatileRegisters);
   AsmExchangeRole (&DataInHob->APInfo, &DataInHob->BSPInfo);
-  RestoreVolatileRegisters (&DataInHob->APInfo.VolatileRegisters, &DataInHob->MpLock); // MU_CHANGE Spinlock RestoreVolatileRegisters
+  RestoreVolatileRegisters (&DataInHob->APInfo.VolatileRegisters);
 }
 
 /**
@@ -243,8 +239,6 @@ SaveVolatileRegisters (
   VolatileRegisters->Tr = AsmReadTr ();
 }
 
-// MU_CHANGE START: Spinlock RestoreVolatileRegisters
-
 /**
   Restore the volatile registers following INIT IPI.
 
@@ -253,17 +247,11 @@ SaveVolatileRegisters (
 **/
 VOID
 RestoreVolatileRegisters (
-  IN CPU_VOLATILE_REGISTERS  *VolatileRegisters,
-  IN SPIN_LOCK               *MpLock
+  IN CPU_VOLATILE_REGISTERS  *VolatileRegisters
   )
 {
   CPUID_VERSION_INFO_EDX  VersionInfoEdx;
   IA32_TSS_DESCRIPTOR     *Tss;
-
-  // The GDT and segment descriptors are shared by all APs and cannot be accessed
-  // concurrently. Acquire the MP lock to prevent other APs from changing them
-  // while we are restoring them.
-  AcquireSpinLock (MpLock);
 
   AsmWriteCr3 (VolatileRegisters->Cr3);
   AsmWriteCr4 (VolatileRegisters->Cr4);
@@ -290,16 +278,34 @@ RestoreVolatileRegisters (
   {
     Tss = (IA32_TSS_DESCRIPTOR *)(VolatileRegisters->Gdtr.Base +
                                   VolatileRegisters->Tr);
-    if (Tss->Bits.P == 1) {
-      Tss->Bits.Type &= 0xD;  // 1101 - Clear busy bit just in case
+
+    if ((Tss->Bits.P == 1) && ((Tss->Bits.Type & BIT1) == 0)) {
+      // TR is used to enable a separate safe stack when a stack overflow occurs.
+      // When PEI starts up the APs, TR is non-zero and so each processor has its
+      // own GDT. TR is an offset into the GDT and so points to a different TSS entry
+      // in each AP.
+      // There is a small window in early DXE after MpInitLibInitialize() is called
+      // where:
+      // - TR is non-zero because it has been inherited from the PEI phase
+      // - TR is not restored to 0
+      // - The APs are all switched to using the BSP's GDT
+      // - SaveVolatileRegisters() is called from ApWakeupFunction() before the APs
+      //   go to sleep, which saves the non-zero TR value to CpuMpData->CpuData[].VolatileRegisters.Tr,
+      //   cause TR to point to the same TSS entry in the BSP's GDT
+      // - The next time the APs are woken up, RestoreVolatileRegisters() is called
+      //   from ApWakeupFunction() which would attempt to load the non-zero TR value into the actual
+      //   task register, which creates a race condition to a #GP fault because loading the task
+      //   register sets the busy bit in the TSS descriptor and a #GP fault occurs if the busy bit
+      //   is already set when loading the task register.
+      //
+      // To avoid this issue, the task register is only loaded if TR is non-zero and the
+      // TSS descriptor is valid and not busy. HW sets the busy bit and does not clear it. edk2 does
+      // not clear the busy bit, so the BSP's TSS descriptor will be marked busy forever and the APs
+      // will not load the task register until they have their own GDT/TSS set up.
       AsmWriteTr (VolatileRegisters->Tr);
     }
   }
-
-  ReleaseSpinLock (MpLock);
 }
-
-// MU_CHANGE END: Spinlock RestoreVolatileRegisters
 
 /**
   Detect whether Mwait-monitor feature is supported.
@@ -793,7 +799,7 @@ ApWakeupFunction (
       //   to initialize AP in InitConfig path.
       // NOTE: IDTR.BASE stored in CpuMpData->CpuData[ProcessorNumber].VolatileRegisters points to a different IDT shared by all APs.
       //
-      RestoreVolatileRegisters (&CpuMpData->CpuData[ProcessorNumber].VolatileRegisters, &CpuMpData->MpLock); // MU_CHANGE Spinlock RestoreVolatileRegisters
+      RestoreVolatileRegisters (&CpuMpData->CpuData[ProcessorNumber].VolatileRegisters);
       InitializeApData (CpuMpData, ProcessorNumber, BistData, ApTopOfStack);
       ApStartupSignalBuffer = CpuMpData->CpuData[ProcessorNumber].StartupApSignal;
     } else {
@@ -820,7 +826,7 @@ ApWakeupFunction (
         0
         );
 
-      RestoreVolatileRegisters (&CpuMpData->CpuData[ProcessorNumber].VolatileRegisters, &CpuMpData->MpLock); // MU_CHANGE Spinlock RestoreVolatileRegisters
+      RestoreVolatileRegisters (&CpuMpData->CpuData[ProcessorNumber].VolatileRegisters);
 
       if (GetApState (&CpuMpData->CpuData[ProcessorNumber]) == CpuStateReady) {
         Procedure = (EFI_AP_PROCEDURE)CpuMpData->CpuData[ProcessorNumber].ApFunction;
@@ -926,7 +932,7 @@ DxeApEntryPoint (
     AsmWriteMsr64 (MSR_IA32_EFER, EferMsr.Uint64);
   }
 
-  RestoreVolatileRegisters (&CpuMpData->CpuData[ProcessorNumber].VolatileRegisters, &CpuMpData->MpLock); // MU_CHANGE Spinlock RestoreVolatileRegisters
+  RestoreVolatileRegisters (&CpuMpData->CpuData[ProcessorNumber].VolatileRegisters);
   InterlockedIncrement ((UINT32 *)&CpuMpData->FinishedCount);
   PlaceAPInMwaitLoopOrRunLoop (
     CpuMpData->ApLoopMode,
@@ -2719,7 +2725,7 @@ SwitchBSPWorker (
   //
   SaveVolatileRegisters (&CpuMpData->BSPInfo.VolatileRegisters);
   AsmExchangeRole (&CpuMpData->BSPInfo, &CpuMpData->APInfo);
-  RestoreVolatileRegisters (&CpuMpData->BSPInfo.VolatileRegisters, &CpuMpData->MpLock); // MU_CHANGE Spinlock RestoreVolatileRegisters
+  RestoreVolatileRegisters (&CpuMpData->BSPInfo.VolatileRegisters);
   //
   // Set the BSP bit of MSR_IA32_APIC_BASE on new BSP
   //

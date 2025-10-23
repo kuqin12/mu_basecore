@@ -296,12 +296,35 @@ ArmFfaLibSpmIdGet (
   OUT UINT16  *SpmPartId
   );
 
+// MU_CHANGE - [BEGIN]
+
 /**
-  Restore the context which was interrupted with FFA_INTERRUPT (EFI_INTERRUPT_PENDING).
+ * Invoked by an endpoint to yield control back to the component
+ * that called it. This prevents long running transactions from
+ * being caught up in the secure world. Endpoint will need to be
+ * invoked with FFA_RUN after the specified timeout.
+ *
+ * @param [in]   TimeoutUs    The timeout indicating the time in which
+ *                            the endpoint is required to be run in
+ *                            microseconds.
+ *
+ * @return EFI_SUCCESS
+ * @return Other              Error
+ */
+EFI_STATUS
+EFIAPI
+ArmFfaLibYield (
+  IN  UINT64  TimeoutUs
+  );
+
+// MU_CHANGE - [END]
+
+/**
+  Restore context which interrupted with FFA_INTERRUPT (EFI_INTERRUPT_PENDING).
 
   @param [in]   PartId       Partition id
   @param [in]   CpuNumber    Cpu number in partition
-  @param [out]  CtxFfaArgs   Optional context of FFA_ARGS
+  @param [out]  DirectMsgArg return arguments for direct msg resp/resp2
 
   @retval EFI_SUCCESS
   @retval Other              Error
@@ -310,9 +333,9 @@ ArmFfaLibSpmIdGet (
 EFI_STATUS
 EFIAPI
 ArmFfaLibRun (
-  IN  UINT16        PartId,
-  IN  UINT16        CpuNumber,
-  OUT ARM_FFA_ARGS  *CtxFfaArgs OPTIONAL
+  IN  UINT16           PartId,
+  IN  UINT16           CpuNumber,
+  OUT DIRECT_MSG_ARGS  *DirectMsgArg OPTIONAL
   );
 
 /**
