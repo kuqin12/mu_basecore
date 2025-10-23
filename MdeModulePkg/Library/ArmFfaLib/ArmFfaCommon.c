@@ -613,7 +613,6 @@ ArmFfaLibRun (
 {
   EFI_STATUS    Status;
   ARM_FFA_ARGS  FfaArgs;
-  EFI_STATUS    Status;
 
   ZeroMem (&FfaArgs, sizeof (ARM_FFA_ARGS));
 
