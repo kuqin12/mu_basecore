@@ -1255,22 +1255,20 @@ CoreAddMemoryDescriptor (
     &Dummy
     );
 
-  for (Index = 0; Index < EfiMaxMemoryType; Index++) {
-    if (mMemoryTypeStatisticsSortedByAddress[Index].NumberOfPages != 0) {
-      // MU_CHANGE Starts
-      CoreFreePages (
-        mMemoryTypeStatisticsSortedByAddress[Index].BaseAddress,
-        (UINTN)mMemoryTypeStatisticsSortedByAddress[Index].NumberOfPages
-        );
-      // MU_CHANGE Ends
-    }
-  }
-
   //
   // If the number of pages reserved for a memory type is 0, then all allocations for that type
   // should be in the default range.
   //
   for (Type = (EFI_MEMORY_TYPE)0; Type < EfiMaxMemoryType; Type++) {
+    if (mMemoryTypeStatisticsSortedByAddress[Type].NumberOfPages != 0) {
+      // MU_CHANGE Starts
+      CoreFreePages (
+        mMemoryTypeStatisticsSortedByAddress[Type].BaseAddress,
+        (UINTN)mMemoryTypeStatisticsSortedByAddress[Type].NumberOfPages
+        );
+      // MU_CHANGE Ends
+    }
+
     for (Index = 0; gMemoryTypeInformation[Index].Type != EfiMaxMemoryType; Index++) {
       if (Type == (EFI_MEMORY_TYPE)gMemoryTypeInformation[Index].Type) {
         mMemoryTypeStatistics[Type].InformationIndex = Index;
@@ -2686,50 +2684,7 @@ CoreGetMemoryMap (
     MemoryMap             = NEXT_MEMORY_DESCRIPTOR (MemoryMap, Size);
   }
 
-  EFI_MEMORY_DESCRIPTOR *MemoryMapTemp;
-  MemoryMapTemp = MemoryMapStart;
-  for (;
-       MemoryMapTemp < MemoryMapEnd;
-       MemoryMapTemp = NEXT_MEMORY_DESCRIPTOR (MemoryMapTemp, Size))
-  {
-    DEBUG ((
-      DEBUG_INFO,
-      "Type: %02x Start: %012lx NumPages: %08lx Attr: %lx\n",
-      MemoryMapTemp->Type,
-      MemoryMapTemp->PhysicalStart,
-      MemoryMapTemp->NumberOfPages,
-      MemoryMapTemp->Attribute
-      ));
-  }
-
   MergeMemoryMap (MemoryMapStart, &BufferSize, Size);
-
-  MemoryMapTemp = MemoryMapStart;
-  for (;
-       MemoryMapTemp < MemoryMapEnd;
-       MemoryMapTemp = NEXT_MEMORY_DESCRIPTOR (MemoryMapTemp, Size))
-  {
-    DEBUG ((
-      DEBUG_INFO,
-      "Type: %02x Start: %012lx NumPages: %08lx Attr: %lx\n",
-      MemoryMapTemp->Type,
-      MemoryMapTemp->PhysicalStart,
-      MemoryMapTemp->NumberOfPages,
-      MemoryMapTemp->Attribute
-      ));
-  }
-  MemoryMapEnd = (EFI_MEMORY_DESCRIPTOR *)((UINT8 *)MemoryMapStart + BufferSize);
-  
-  Status = EFI_SUCCESS;
-             DEBUG ((
-               DEBUG_ERROR,
-               "%a: CoreGetMemoryMap returned %r, BufferSize %lu %x - %r\n",
-               __func__,
-               Status,
-               BufferSize,
-               sizeof (EFI_MEMORY_DESCRIPTOR),
-               Status
-               ));
 
 Done:
   //
