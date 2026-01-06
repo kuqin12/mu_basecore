@@ -1331,6 +1331,7 @@ ProgramBar (
   EFI_PCI_IO_PROTOCOL  *PciIo;
   UINT64               Address;
   UINT32               Address32;
+  PCI_TYPE00           Pci;
 
   ASSERT (Node->Bar < PCI_MAX_BAR);
 
@@ -1355,12 +1356,44 @@ ProgramBar (
   //
   Node->PciDev->Allocated = TRUE;
 
+  BOOLEAN DoPrint = FALSE;
+
+  PciIo->Pci.Read (
+    PciIo,
+    EfiPciIoWidthUint32,
+    0,
+    sizeof (Pci) / sizeof (UINT32),
+    &Pci
+    );
+
+  if (IS_CLASS2 (&Pci, PCI_CLASS_MASS_STORAGE, PCI_CLASS_MASS_STORAGE_SOLID_STATE)) {
+    DoPrint = TRUE;
+
+    // Print the device path
+    CHAR16  *DevicePathStr;
+    EFI_DEVICE_PATH_PROTOCOL  *DevicePath;
+    DevicePath = DevicePathFromHandle (Node->PciDev->Handle);
+    DevicePathStr = ConvertDevicePathToText (DevicePath, FALSE, FALSE);
+    DEBUG ((DEBUG_ERROR, "%a (%d) Programming BAR for NVMe Device: %s\n", __func__, __LINE__, DevicePathStr));
+    FreePool (DevicePathStr);
+  }
+
   switch ((Node->PciDev->PciBar[Node->Bar]).BarType) {
     case PciBarTypeIo16:
     case PciBarTypeIo32:
     case PciBarTypeMem32:
     case PciBarTypePMem32:
-
+      if (DoPrint) {
+        DEBUG ((DEBUG_ERROR, "%a (%d) Programmed %d %d %d BAR (type: %d) to %p\n",
+          __func__,
+          __LINE__,
+          Node->PciDev->BusNumber,
+          Node->PciDev->DeviceNumber,
+          Node->PciDev->FunctionNumber,
+          (Node->PciDev->PciBar[Node->Bar]).BarType,
+          Address
+        ));
+      }
       PciIo->Pci.Write (
                    PciIo,
                    EfiPciIoWidthUint32,
@@ -1383,7 +1416,17 @@ ProgramBar (
     case PciBarTypePMem64:
 
       Address32 = (UINT32)(Address & 0x00000000FFFFFFFF);
-
+      if (DoPrint) {
+        DEBUG ((DEBUG_ERROR, "%a (%d) Programmed %d %d %d BAR (type: %d) to %p\n",
+          __func__,
+          __LINE__,
+          Node->PciDev->BusNumber,
+          Node->PciDev->DeviceNumber,
+          Node->PciDev->FunctionNumber,
+          (Node->PciDev->PciBar[Node->Bar]).BarType,
+          Address32
+        ));
+      }
       PciIo->Pci.Write (
                    PciIo,
                    EfiPciIoWidthUint32,
@@ -1393,7 +1436,17 @@ ProgramBar (
                    );
 
       Address32 = (UINT32)RShiftU64 (Address, 32);
-
+      if (DoPrint) {
+        DEBUG ((DEBUG_ERROR, "%a (%d) Programmed %d %d %d BAR_upper (type: %d) to %p\n",
+          __func__,
+          __LINE__,
+          Node->PciDev->BusNumber,
+          Node->PciDev->DeviceNumber,
+          Node->PciDev->FunctionNumber,
+          (Node->PciDev->PciBar[Node->Bar]).BarType,
+          Address32
+        ));
+      }
       PciIo->Pci.Write (
                    PciIo,
                    EfiPciIoWidthUint32,
