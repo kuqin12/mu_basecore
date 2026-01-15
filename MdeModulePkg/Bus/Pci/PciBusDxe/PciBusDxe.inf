@@ -104,6 +104,7 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdUnalignedPciIoEnable            ## CONSUMES
   gEfiMdeModulePkgTokenSpaceGuid.PcdPciDegradeResourceForOptionRom  ## CONSUMES
   gEfiMdeModulePkgTokenSpaceGuid.PcdDeferBME                        ## MU_CHANGE
+  gEfiMdeModulePkgTokenSpaceGuid.PcdPciDegradeMem64toPMem64         ## MU_CHANGE
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdSrIovSystemPageSize         ## SOMETIMES_CONSUMES

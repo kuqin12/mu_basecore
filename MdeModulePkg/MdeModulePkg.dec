@@ -1154,6 +1154,17 @@
   # @Prompt Install Internal Event Services Protocol
   gEfiMdeModulePkgTokenSpaceGuid.PcdInternalEventServicesEnabled|FALSE|BOOLEAN|0x30003003
 
+  ## MU_CHANGE
+  ## Indicates if Mem64 resource requests can be allocated using the PMem64
+  #  pool during PCI enumeration in case Mem64 resources are not available.
+  #  This is supported as per PCI Base spec 6.3+. which recommends that software
+  #  should not use the prefetchable/non-prefetchable bits for determining BAR
+  #  allocations.
+  #    TRUE  - Degrade Mem64 resources to use PMem64 when needed
+  #    FALSE - Mem64 will be degraded to Mem32 and never to PMem64 
+  # @Prompt Support degrading Mem64 to PMem64 during PCI enumeration
+  gEfiMdeModulePkgTokenSpaceGuid.PcdPciDegradeMem64toPMem64|FALSE|BOOLEAN|0x30003004
+
 [PcdsFeatureFlag.IA32, PcdsFeatureFlag.ARM, PcdsFeatureFlag.AARCH64]
   gEfiMdeModulePkgTokenSpaceGuid.PcdPciDegradeResourceForOptionRom|FALSE|BOOLEAN|0x0001003a
 
