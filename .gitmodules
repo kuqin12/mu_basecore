@@ -29,3 +29,6 @@
 [submodule "TcgTpmPkg/Library/TpmLib/TPM"]
 	path = TcgTpmPkg/Library/TpmLib/TPM
 	url = https://github.com/TrustedComputingGroup/TPM
+[submodule "TcgTpmPkg/Library/OpensslLib/openssl"]
+	path = TcgTpmPkg/Library/OpensslLib/openssl
+	url = https://github.com/openssl/openssl
