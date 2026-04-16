@@ -72,7 +72,7 @@ Done:
       );
   }
 
-  DEBUG ((DEBUG_INFO, "%a - Exit\n", __func__));
+  DEBUG ((DEBUG_INFO, "%a - Exit %r\n", __func__, Status));
 
   return Status;
 }
