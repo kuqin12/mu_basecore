@@ -767,3 +767,9 @@ EFIAPI
 PlatformTpmLibInit (
   VOID
   );
+
+VOID
+EFIAPI
+PlatformTpmLibTearDown (
+  VOID
+  );

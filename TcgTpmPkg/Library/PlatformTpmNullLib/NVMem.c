@@ -275,3 +275,12 @@ PlatformTpmLibClearNvAvail (
   // The anti-set; not on this platform.
   return;
 }
+
+VOID
+EFIAPI
+PlatformTpmLibTearDown (
+  VOID
+)
+{
+  return;
+}

@@ -791,6 +791,20 @@ _plat__GetVendorTpmType (
 }
 
 /**
+  return the Platform TPM type.
+
+  @return               TPM type.
+
+**/
+LIB_EXPORT void
+_plat__TearDown (
+  void
+  )
+{
+  PlatformTpmLibTearDown ();
+}
+
+/**
   return TPM spec information.
   This is copied from TPM/TPMCmd/Platform/src/VendorInfo.c
 
