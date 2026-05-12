@@ -28,6 +28,7 @@
 #include <Library/PcdLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DxeServicesTableLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
 
 #include <IndustryStandard/ArmFfaSvc.h>
 
@@ -39,6 +40,10 @@
 STATIC EFI_EVENT  mFfaExitBootServiceEvent;
 STATIC UINT16     mPartId;
 STATIC BOOLEAN    mIsFfaSupported;
+extern UINT64     mFfaPerfBuffer;
+
+// Notification event when virtual address map is set.
+STATIC EFI_EVENT  mSetVirtualAddressMapEvent;
 
 /**
   Unmap RX/TX buffer on Exit Boot Service.
@@ -56,6 +61,57 @@ ArmFfaLibExitBootServiceEvent (
   )
 {
   ArmFfaLibRxTxUnmap ();
+}
+
+/**
+  Notification callback on SetVirtualAddressMap event.
+
+  This function notifies the MM communication protocol interface on
+  SetVirtualAddressMap event and converts pointers used in this driver
+  from physical to virtual address.
+
+  @param  Event          SetVirtualAddressMap event.
+  @param  Context        A context when the SetVirtualAddressMap triggered.
+
+  @retval EFI_SUCCESS    The function executed successfully.
+  @retval Other          Some error occurred when executing this function.
+
+**/
+STATIC
+VOID
+EFIAPI
+NotifySetVirtualAddressMap (
+  IN EFI_EVENT  Event,
+  IN VOID       *Context
+  )
+{
+  EFI_STATUS  Status;
+  DIRECT_MSG_ARGS  DirectMsgArgs;
+
+  Status = gRT->ConvertPointer (
+                  EFI_OPTIONAL_PTR,
+                  (VOID **)&mFfaPerfBuffer
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "NotifySetVirtualAddressMap():"
+      " Unable to convert MM runtime pointer. Status:0x%r\n",
+      Status
+      ));
+  }
+
+  DirectMsgArgs.Arg0 = (UINTN)(UINT64)mFfaPerfBuffer;
+
+  // After conversion, send a Ffa direct req 2 to stmm to notify the change of virtual address map.
+  Status = ArmFfaLibMsgSendDirectReq2 (
+    0x8004, // SPMC Part ID
+    &gArmFfaPerfDataBufferGuid,
+    &DirectMsgArgs
+    );
+  if (EFI_ERROR (Status)) {
+    CpuDeadLoop ();
+  }
 }
 
 /**
@@ -195,6 +251,18 @@ ArmFfaDxeLibConstructor (
         ));
     }
   }
+
+  // Register notification callback when virtual address is associated
+  // with the physical address.
+  // Create a Set Virtual Address Map event.
+  Status = gBS->CreateEvent (
+                  EVT_SIGNAL_VIRTUAL_ADDRESS_CHANGE,
+                  TPL_NOTIFY,
+                  NotifySetVirtualAddressMap,
+                  NULL,
+                  &mSetVirtualAddressMapEvent
+                  );
+  ASSERT_EFI_ERROR (Status);
 
   Status = ArmFfaLibCommonInit (&mPartId, &mIsFfaSupported);
   if (EFI_ERROR (Status)) {

@@ -30,8 +30,14 @@
 #include <IndustryStandard/ArmStdSmc.h>
 
 #include <Guid/ArmFfaRxTxBufferInfo.h>
+#include <Library/SynchronizationLib.h>
+#include <Library/TimerLib.h>
+
+#include <Guid/FfaPerf.h>
 
 #include "ArmFfaCommon.h"
+
+UINT64     mFfaPerfBuffer = FFA_PERF_DATA_BUFFER_BASE;
 
 /**
   Convert EFI_STATUS to FFA return code.
@@ -162,10 +168,56 @@ ArmCallFfa (
   IN OUT ARM_FFA_ARGS  *FfaArgs
   )
 {
+  FFA_PERF_DATA_BUFFER *FfaPerfBuffer = (FFA_PERF_DATA_BUFFER*)mFfaPerfBuffer;
+  UINT64 CurrentIndex;
+  UINT64 NextIndex;
+  UINT64 OldValue;
+  FFA_PERF_ENTRY *FfaPerfEntry = NULL;
+
+  UINT64 CurrentCall;
+  UINT64 NextCall;
+  UINT64 OldCall;
+
+  // Atomically update the TotalCalls in the FFA_PERF_DATA_BUFFER
+  do {
+    CurrentIndex = FfaPerfBuffer->NextIndex;
+    NextIndex      = CurrentIndex + 1;
+    if (NextIndex < MAX_ENTRY_COUNT) {
+      OldValue  = InterlockedCompareExchange64 (
+                    &FfaPerfBuffer->NextIndex,
+                    CurrentIndex,
+                    NextIndex
+                    );
+    }
+
+    CurrentCall = FfaPerfBuffer->TotalCalls;
+    NextCall   = CurrentCall + 1;
+    OldCall = InterlockedCompareExchange64 (
+        &FfaPerfBuffer->TotalCalls,
+        CurrentCall,
+        NextCall
+        );
+  } while (OldCall != CurrentCall);
+
+  if (OldValue < MAX_ENTRY_COUNT) {
+    // We "allocated" a lot
+    FfaPerfEntry = &FfaPerfBuffer->CallEntries[OldValue];
+    FfaPerfEntry->Type = FFA_PERF_ENTRY_TYPE_RAW;
+    FfaPerfEntry->FunctionId = FfaArgs->Arg0;
+    FfaPerfEntry->Target = FfaArgs->Arg1; // Target is not available at this point
+    FfaPerfEntry->StartTick = GetPerformanceCounter (); // Duration is not available at this point
+    FfaPerfEntry->ReturnValue = 0; // Return value is not available at this point
+  }
+
   if (PcdGetBool (PcdFfaLibConduitSmc)) {
     ArmCallSmc ((ARM_SMC_ARGS *)FfaArgs);
   } else {
     ArmCallSvc ((ARM_SVC_ARGS *)FfaArgs);
+  }
+
+  if (FfaPerfEntry != NULL) {
+    FfaPerfEntry->ReturnValue = FfaArgs->Arg0;
+    FfaPerfEntry->EndTick = GetPerformanceCounter ();
   }
 }
 
@@ -798,6 +850,48 @@ ArmFfaLibMsgSendDirectReq (
   EFI_STATUS    Status;
   ARM_FFA_ARGS  FfaArgs;
   UINT16        PartId;
+  UINT64        TargetId;
+
+  FFA_PERF_DATA_BUFFER *FfaPerfBuffer = (FFA_PERF_DATA_BUFFER*)mFfaPerfBuffer;
+  UINT64 CurrentIndex;
+  UINT64 NextIndex;
+  UINT64 OldValue;
+  FFA_PERF_ENTRY *FfaPerfEntry = NULL;
+
+  UINT64 CurrentCall;
+  UINT64 NextCall;
+  UINT64 OldCall;
+
+  // Atomically update the TotalCalls in the FFA_PERF_DATA_BUFFER
+  do {
+    CurrentIndex = FfaPerfBuffer->NextIndex;
+    NextIndex      = CurrentIndex + 1;
+    if (NextIndex < MAX_ENTRY_COUNT) {
+      OldValue  = InterlockedCompareExchange64 (
+                    &FfaPerfBuffer->NextIndex,
+                    CurrentIndex,
+                    NextIndex
+                    );
+    }
+
+    CurrentCall = FfaPerfBuffer->TotalCalls;
+    NextCall   = CurrentCall + 1;
+    OldCall = InterlockedCompareExchange64 (
+        &FfaPerfBuffer->TotalCalls,
+        CurrentCall,
+        NextCall
+        );
+  } while (OldCall != CurrentCall);
+
+  if (OldValue < MAX_ENTRY_COUNT) {
+    // We "allocated" a lot
+    FfaPerfEntry = &FfaPerfBuffer->CallEntries[OldValue];
+    FfaPerfEntry->Type = FFA_PERF_ENTRY_TYPE_DIRECT;
+    FfaPerfEntry->FunctionId = ARM_FID_FFA_MSG_SEND_DIRECT_REQ;
+    FfaPerfEntry->Target = FfaArgs.Arg1; // Target is not available at this point
+    FfaPerfEntry->StartTick = GetPerformanceCounter (); // Duration is not available at this point
+    FfaPerfEntry->ReturnValue = 0; // Return value is not available at this point
+  }
 
   Status = ArmFfaLibGetPartId (&PartId);
   if (EFI_ERROR (Status)) {
@@ -820,6 +914,19 @@ ArmFfaLibMsgSendDirectReq (
   FfaArgs.Arg7 = ImpDefArgs->Arg4;
 
   ArmCallFfa (&FfaArgs);
+
+  while ((FfaArgs.Arg0 == ARM_FID_FFA_INTERRUPT) || (FfaArgs.Arg0 == ARM_FID_FFA_YIELD)) {
+    TargetId = FfaArgs.Arg1;
+    ZeroMem (&FfaArgs, sizeof (FfaArgs));
+    FfaArgs.Arg0 = ARM_FID_FFA_RUN;
+    FfaArgs.Arg1 = TargetId;
+    ArmCallFfa (&FfaArgs);
+  }
+
+  if (FfaPerfEntry != NULL) {
+    FfaPerfEntry->ReturnValue = FfaArgs.Arg0;
+    FfaPerfEntry->EndTick = GetPerformanceCounter ();
+  }
 
   Status = FfaArgsToEfiStatus (&FfaArgs);
   if (EFI_ERROR (Status)) {
@@ -859,6 +966,48 @@ ArmFfaLibMsgSendDirectReq2 (
   UINT64        Uuid[2];
   ARM_FFA_ARGS  FfaArgs;
   UINT16        PartId;
+  UINT64        TargetId;
+
+  FFA_PERF_DATA_BUFFER *FfaPerfBuffer = (FFA_PERF_DATA_BUFFER*)mFfaPerfBuffer;
+  UINT64 CurrentIndex;
+  UINT64 NextIndex;
+  UINT64 OldValue;
+  FFA_PERF_ENTRY *FfaPerfEntry = NULL;
+
+  UINT64 CurrentCall;
+  UINT64 NextCall;
+  UINT64 OldCall;
+
+  // Atomically update the TotalCalls in the FFA_PERF_DATA_BUFFER
+  do {
+    CurrentIndex = FfaPerfBuffer->NextIndex;
+    NextIndex      = CurrentIndex + 1;
+    if (NextIndex < MAX_ENTRY_COUNT) {
+      OldValue  = InterlockedCompareExchange64 (
+                    &FfaPerfBuffer->NextIndex,
+                    CurrentIndex,
+                    NextIndex
+                    );
+    }
+
+    CurrentCall = FfaPerfBuffer->TotalCalls;
+    NextCall   = CurrentCall + 1;
+    OldCall = InterlockedCompareExchange64 (
+        &FfaPerfBuffer->TotalCalls,
+        CurrentCall,
+        NextCall
+        );
+  } while (OldCall != CurrentCall);
+
+  if (OldValue < MAX_ENTRY_COUNT) {
+    // We "allocated" a lot
+    FfaPerfEntry = &FfaPerfBuffer->CallEntries[OldValue];
+    FfaPerfEntry->Type = FFA_PERF_ENTRY_TYPE_DIRECT;
+    FfaPerfEntry->FunctionId = ARM_FID_FFA_MSG_SEND_DIRECT_REQ2;
+    FfaPerfEntry->Target = FfaArgs.Arg1; // Target is not available at this point
+    FfaPerfEntry->StartTick = GetPerformanceCounter (); // Duration is not available at this point
+    FfaPerfEntry->ReturnValue = 0; // Return value is not available at this point
+  }
 
   /*
    * Direct message request 2 is only supported on AArch64.
@@ -904,6 +1053,19 @@ ArmFfaLibMsgSendDirectReq2 (
   FfaArgs.Arg17 = ImpDefArgs->Arg13;
 
   ArmCallFfa (&FfaArgs);
+
+  while ((FfaArgs.Arg0 == ARM_FID_FFA_INTERRUPT) || (FfaArgs.Arg0 == ARM_FID_FFA_YIELD)) {
+    TargetId = FfaArgs.Arg1;
+    ZeroMem (&FfaArgs, sizeof (FfaArgs));
+    FfaArgs.Arg0 = ARM_FID_FFA_RUN;
+    FfaArgs.Arg1 = TargetId;
+    ArmCallFfa (&FfaArgs);
+  }
+
+  if (FfaPerfEntry != NULL) {
+    FfaPerfEntry->ReturnValue = FfaArgs.Arg0;
+    FfaPerfEntry->EndTick = GetPerformanceCounter ();
+  }
 
   Status = FfaArgsToEfiStatus (&FfaArgs);
   if (EFI_ERROR (Status)) {

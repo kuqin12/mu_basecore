@@ -20,7 +20,7 @@
   ArmFfaCommon.c
   ArmFfaRxTxMap.h
   ArmFfaRxTxMap.c
-  ArmFfaDxeLib.c
+  ArmFfaRuntimeLib.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -48,3 +48,4 @@ DxeServicesTableLib
 [Guids]
   gArmFfaRxTxBufferInfoGuid
   gEfiEventExitBootServicesGuid
+gArmFfaPerfDataBufferGuid

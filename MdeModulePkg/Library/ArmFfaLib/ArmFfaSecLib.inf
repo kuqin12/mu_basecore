@@ -35,7 +35,8 @@
   HobLib
   MemoryAllocationLib
   SafeIntLib
-
+SynchronizationLib
+TimerLib
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdFfaLibConduitSmc
   gEfiMdeModulePkgTokenSpaceGuid.PcdFfaTxRxPageCount

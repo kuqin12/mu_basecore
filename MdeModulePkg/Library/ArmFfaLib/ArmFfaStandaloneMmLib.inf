@@ -37,7 +37,8 @@
   MemoryAllocationLib
   MmServicesTableLib
   SafeIntLib
-
+SynchronizationLib
+TimerLib
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdFfaLibConduitSmc
   gEfiMdeModulePkgTokenSpaceGuid.PcdFfaTxRxPageCount
