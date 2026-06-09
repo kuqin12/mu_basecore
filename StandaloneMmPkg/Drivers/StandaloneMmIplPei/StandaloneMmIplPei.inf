@@ -26,6 +26,7 @@
   StandaloneMmIplPei.c
   StandaloneMmIplPei.h
   MmFoundationHob.c
+  MmFoundationRelay.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -58,6 +59,7 @@
   gMmUnblockRegionHobGuid
   gMmStatusCodeUseSerialHobGuid
   gEfiMmCommunicateHeaderV3Guid
+  gMmStandaloneSecondaryIplFileGuid
 
 [Ppis]
   gEfiPeiMmControlPpiGuid
@@ -67,6 +69,7 @@
   gMmCoreFvLocationPpiGuid
   gEfiPeiMmAccessPpiGuid
   gMmPlatformHobOverridePpiGuid
+  gEfiPeiLoadFilePpiGuid
 
 [Protocols]
   gEfiMmEndOfPeiProtocol

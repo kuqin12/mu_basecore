@@ -12,6 +12,7 @@
 #include <StandaloneMm.h>
 #include <Guid/MmCommBuffer.h>
 #include <Guid/MmramMemoryReserve.h>
+#include <Guid/MmStandaloneSecondaryIpl.h>
 #include <Library/HobLib.h>
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
@@ -29,6 +30,11 @@
 #include <Ppi/MmPlatformHobOverride.h>
 #include <Protocol/MmCommunication.h>
 #include <Library/MmPlatformHobProducerLib.h>
+
+typedef EFI_STATUS (*MM_FOUNDATION_RELAY_ENTRY_POINT) (
+  IN PE_COFF_LOADER_IMAGE_CONTEXT  *ImageContext,
+  IN VOID                          *MmHobList
+  );
 
 /**
   Communicates with a registered handler.
@@ -176,6 +182,20 @@ VOID
 CreateMmHobHandoffInfoTable (
   IN EFI_HOB_HANDOFF_INFO_TABLE  *Hob,
   IN VOID                        *HobEnd
+  );
+
+/**
+  Locates the relay image entry point.
+
+  @param RelayImageEntryPoint      Pointer to relay image entry point for output.
+
+  @retval EFI_SUCCESS     Relay image successfully located.
+  @retval Others          Failed to locate the relay image.
+
+**/
+EFI_STATUS
+FindMmIplRelayImage (
+  OUT EFI_PHYSICAL_ADDRESS  *RelayImageEntryPoint
   );
 
 #endif

@@ -753,6 +753,7 @@ ExecuteMmCoreFromMmram (
   UINTN                           Size;
   UINTN                           Index;
   UINTN                           MmramRangeCount;
+  MM_FOUNDATION_RELAY_ENTRY_POINT MmCoreRelayAddress;
 
   MmFvBase = 0;
   MmFvSize = 0;
@@ -876,8 +877,14 @@ ExecuteMmCoreFromMmram (
       //
       // Execute image
       //
-      Entry = (MM_FOUNDATION_ENTRY_POINT)(UINTN)ImageContext.EntryPoint;
-      Entry (MmHobList);
+      Status = FindMmIplRelayImage (&(EFI_PHYSICAL_ADDRESS)MmCoreRelayAddress);
+      if (Status == EFI_SUCCESS) {
+        DEBUG ((DEBUG_INFO, "StandaloneMM IPL found MM Core relay at %p to load %g\n", MmCoreRelayAddress, &MmCoreFileName));
+        MmCoreRelayAddress (&ImageContext, MmHobList);
+      } else {
+        Entry = (MM_FOUNDATION_ENTRY_POINT)(UINTN)ImageContext.EntryPoint;
+        Entry (MmHobList);
+      }
       FreePages (MmHobList, EFI_SIZE_TO_PAGES (MmHobSize));
     }
   }
