@@ -66,6 +66,7 @@
   gEfiEndOfPeiSignalPpiGuid
   gMmCoreFvLocationPpiGuid
   gEfiPeiMmAccessPpiGuid
+  gMmPlatformHobOverridePpiGuid
 
 [Protocols]
   gEfiMmEndOfPeiProtocol

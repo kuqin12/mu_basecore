@@ -26,6 +26,7 @@
 #include <Ppi/MmCommunication.h>
 #include <Ppi/MmCommunication3.h>
 #include <Ppi/MmCoreFvLocationPpi.h>
+#include <Ppi/MmPlatformHobOverride.h>
 #include <Protocol/MmCommunication.h>
 #include <Library/MmPlatformHobProducerLib.h>
 

@@ -366,6 +366,60 @@ LocateMmCoreFv (
 }
 
 /**
+  Build the MM HOB list using a platform-supplied MM Platform HOB Override PPI.
+
+  Uses the PPI's two-call protocol (size query, then fill) and returns the
+  platform-produced HOB list as the complete MM HOB list.
+
+  @param[in]   Ppi       The MM Platform HOB Override PPI.
+  @param[out]  HobSize   On success, the size of the produced HOB list.
+
+  @return  Pointer to the produced HOB list, or NULL on failure.
+
+**/
+STATIC
+VOID *
+MmIplBuildOverrideHobList (
+  IN  MM_PLATFORM_HOB_OVERRIDE_PPI  *Ppi,
+  OUT UINTN                         *HobSize
+  )
+{
+  EFI_STATUS  Status;
+  UINTN       Size;
+  VOID        *HobList;
+
+  Size   = 0;
+  Status = Ppi->BuildHobList (Ppi, NULL, &Size);
+  if ((Status != RETURN_BUFFER_TOO_SMALL) || (Size == 0)) {
+    DEBUG ((DEBUG_ERROR, "%a: HOB override sizing failed (%r, size %d)\n", __func__, Status, Size));
+    ASSERT (FALSE);
+    return NULL;
+  }
+
+  // Add extra space for the next allocation
+  Size   += sizeof (EFI_HOB_MEMORY_ALLOCATION) + sizeof (EFI_HOB_GUID_TYPE);
+  HobList = AllocatePages (EFI_SIZE_TO_PAGES (Size));
+  if (HobList == NULL) {
+    DEBUG ((DEBUG_ERROR, "%a: Out of resource to create overridden MM HOBs\n", __func__));
+    ASSERT (FALSE);
+    return NULL;
+  }
+
+  Size = EFI_SIZE_TO_PAGES (Size) * EFI_PAGE_SIZE;
+
+  Status = Ppi->BuildHobList (Ppi, HobList, &Size);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: HOB override build failed (%r)\n", __func__, Status));
+    ASSERT_EFI_ERROR (Status);
+    FreePages (HobList, EFI_SIZE_TO_PAGES (Size));
+    return NULL;
+  }
+
+  *HobSize = Size;
+  return HobList;
+}
+
+/**
   Create HOB list for Standalone MM core.
 
   @param[out]  HobSize              HOB size of fundation and platform HOB list.
@@ -404,6 +458,16 @@ CreateMmHobList (
   EFI_HOB_MEMORY_ALLOCATION  *MmProfileDataHob;
   UINTN                      PhitHobSize;
   VOID                       *HobEnd;
+  VOID                       *HobOverridePpi;
+
+  //
+  // Allow a platform to fully override MM HOB list construction via the optional
+  // MM Platform HOB Override PPI. When present, the platform produces the complete
+  // HOB list and the IPL does not append its own platform or foundation HOBs.
+  //
+  if (!EFI_ERROR (PeiServicesLocatePpi (&gMmPlatformHobOverridePpiGuid, 0, NULL, &HobOverridePpi))) {
+    return MmIplBuildOverrideHobList ((MM_PLATFORM_HOB_OVERRIDE_PPI *)HobOverridePpi, HobSize);
+  }
 
   //
   // Get platform HOBs
