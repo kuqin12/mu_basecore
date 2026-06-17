@@ -66,19 +66,26 @@ SendFfaMmCommunicate (
   EFI_STATUS       Status;
   DIRECT_MSG_ARGS  CommunicateArgs;
 
-  ZeroMem (&CommunicateArgs, sizeof (DIRECT_MSG_ARGS));
+  while (TRUE) {
+    ZeroMem (&CommunicateArgs, sizeof (DIRECT_MSG_ARGS));
 
-  CommunicateArgs.Arg0 = (UINTN)mNsCommBuffMemRegion.PhysicalBase;
+    CommunicateArgs.Arg0 = (UINTN)mNsCommBuffMemRegion.PhysicalBase;
 
-  Status = ArmFfaLibMsgSendDirectReq (
-             mStMmPartId,
-             0,
-             &CommunicateArgs
-             );
+    Status = ArmFfaLibMsgSendDirectReq (
+              mStMmPartId,
+              0,
+              &CommunicateArgs
+              );
 
-  while (Status == EFI_INTERRUPT_PENDING) {
-    // We are assuming vCPU0 of the StMM SP since it is UP.
-    Status = ArmFfaLibRun (mStMmPartId, 0x00, NULL);
+    // Retry if the message is interrupted or yielded, or the partition is busy.
+    if (Status == EFI_INTERRUPT_PENDING) {
+      // We are assuming vCPU0 of the StMM SP since it is UP.
+      Status = ArmFfaLibRun (mStMmPartId, 0x00, NULL);
+    } else if (Status == EFI_NO_RESPONSE) {
+      // Do nothing, as we want to retry.
+    } else {
+      break;
+    }
   }
 
   return Status;
