@@ -446,14 +446,30 @@ class FvHandler:
                     BlockSize = TargetFv.Data.Header.BlockMap[0].Length
                     New_Add_Len = BlockSize - Needed_Space%BlockSize
                     Target_index = TargetFv.Child.index(self.TargetFfs)
+                    Free_Space_Tree = (
+                        TargetFv.Child[-1]
+                        if TargetFv.Child[-1].type == FFS_FREE_SPACE
+                        else None
+                    )
                     if New_Add_Len % BlockSize:
-                        TargetFv.Child[-1].Data.Data = b'\xff' * New_Add_Len
+                        if Free_Space_Tree is None:
+                            Free_Space_Tree = BIOSTREE('FREE_SPACE')
+                            Free_Space_Tree.type = FFS_FREE_SPACE
+                            Free_Space_Tree.Data = FreeSpaceNode(
+                                b'\xff' * New_Add_Len
+                            )
+                            TargetFv.insertChild(Free_Space_Tree)
+                        else:
+                            Free_Space_Tree.Data.Data = b'\xff' * New_Add_Len
+                            Free_Space_Tree.Data.Size = New_Add_Len
                         TargetFv.Data.Free_Space = New_Add_Len
                         Needed_Space += New_Add_Len
                         TargetFv.insertChild(self.NewFfs, Target_index)
                         TargetFv.Child.remove(self.TargetFfs)
                     else:
                         TargetFv.Child.remove(self.TargetFfs)
+                        if Free_Space_Tree is not None:
+                            TargetFv.Child.remove(Free_Space_Tree)
                         TargetFv.Data.Free_Space = 0
                         TargetFv.insertChild(self.NewFfs)
                     # Encapsulate the Fv Data for update.
@@ -486,9 +502,9 @@ class FvHandler:
             else:
                 New_Free_Space_Tree = BIOSTREE('FREE_SPACE')
                 New_Free_Space_Tree.type = FFS_FREE_SPACE
-                New_Free_Space_Tree.Data = FfsNode(b'\xff' * New_Free_Space)
+                New_Free_Space_Tree.Data = FreeSpaceNode(b'\xff' * New_Free_Space)
                 TargetFv.Data.Free_Space = New_Free_Space
-                TargetFv.insertChild(New_Free_Space)
+                TargetFv.insertChild(New_Free_Space_Tree)
                 Target_index = TargetFv.Child.index(self.TargetFfs)
                 TargetFv.Child.remove(self.TargetFfs)
                 TargetFv.insertChild(self.NewFfs, Target_index)
