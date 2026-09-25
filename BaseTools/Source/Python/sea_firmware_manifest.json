@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "files": [
+    {
+      "name": "MM supervisor core",
+      "guid": "4E4C89DC-A452-4B6B-B183-F16A2A223733",
+      "payload": "mm_supervisor.efi",
+      "section_type": "PE32",
+      "ffs_type": "MM_CORE_STANDALONE"
+    },
+    {
+      "name": "MM supervisor auxiliary file",
+      "guid": "581A5B2D-3ACB-465D-A99D-C4AA2C75E250",
+      "payload": "Misc/mm_supervisor.aux",
+      "section_type": "RAW",
+      "ffs_type": "FREEFORM"
+    },
+    {
+      "name": "MMI entry",
+      "guid": "20A3658C-0982-4D69-8044-07C7871EDBED",
+      "payload": "MmiEntrySea.bin",
+      "section_type": "RAW",
+      "ffs_type": "FREEFORM"
+    },
+    {
+      "name": "SEA STM",
+      "guid": "E7F9ABC2-61A6-4AF3-A00F-1150CC6EFE20",
+      "payload": "Stm.bin",
+      "section_type": "RAW",
+      "ffs_type": "FREEFORM"
+    },
+    {
+      "name": "SEA manifest",
+      "guid": "442ADAD1-5D9C-46EA-B538-C7B1740F8392",
+      "payload": "SeaManifest.bin",
+      "section_type": "RAW",
+      "ffs_type": "FREEFORM"
+    }
+  ]
+}

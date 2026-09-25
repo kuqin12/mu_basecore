@@ -2,7 +2,10 @@
 
 import argparse
 import hashlib
+import json
+import logging
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -15,67 +18,33 @@ from typing import Optional
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_BASETOOLS = SCRIPT_DIR / "MU_BASECORE" / "BaseTools"
+DEFAULT_BASETOOLS = (
+    SCRIPT_DIR.parents[1]
+    if (SCRIPT_DIR / "FMMT").is_dir()
+    else SCRIPT_DIR / "MU_BASECORE" / "BaseTools"
+)
+DEFAULT_MANIFEST = SCRIPT_DIR / "sea_firmware_manifest.json"
+
+SECTION_TYPES = {
+    "PE32": ("EFI_SECTION_PE32", 0x10),
+    "RAW": ("EFI_SECTION_RAW", 0x19),
+}
+
+FFS_TYPES = {
+    "FREEFORM": ("EFI_FV_FILETYPE_FREEFORM", 0x02),
+    "MM_CORE_STANDALONE": ("EFI_FV_FILETYPE_MM_CORE_STANDALONE", 0x0F),
+}
 
 
 @dataclass(frozen=True)
 class SeaFile:
     name: str
     guid: str
-    default_filename: str
+    payload_path: str
     section_type: str
     section_type_value: int
     ffs_type: str
     ffs_type_value: int
-
-
-SEA_FILES = (
-    SeaFile(
-        "MM supervisor core",
-        "4E4C89DC-A452-4B6B-B183-F16A2A223733",
-        "MmSupervisorCore.efi",
-        "EFI_SECTION_PE32",
-        0x10,
-        "EFI_FV_FILETYPE_MM_CORE_STANDALONE",
-        0x0F,
-    ),
-    SeaFile(
-        "MM supervisor auxiliary file",
-        "581A5B2D-3ACB-465D-A99D-C4AA2C75E250",
-        "MmSupervisorCore.aux",
-        "EFI_SECTION_RAW",
-        0x19,
-        "EFI_FV_FILETYPE_FREEFORM",
-        0x02,
-    ),
-    SeaFile(
-        "MMI entry",
-        "20A3658C-0982-4D69-8044-07C7871EDBED",
-        "MmiEntrySea.bin",
-        "EFI_SECTION_RAW",
-        0x19,
-        "EFI_FV_FILETYPE_FREEFORM",
-        0x02,
-    ),
-    SeaFile(
-        "SEA STM",
-        "E7F9ABC2-61A6-4AF3-A00F-1150CC6EFE20",
-        "Stm.bin",
-        "EFI_SECTION_RAW",
-        0x19,
-        "EFI_FV_FILETYPE_FREEFORM",
-        0x02,
-    ),
-    SeaFile(
-        "SEA manifest",
-        "442ADAD1-5D9C-46EA-B538-C7B1740F8392",
-        "SeaManifest.bin",
-        "EFI_SECTION_RAW",
-        0x19,
-        "EFI_FV_FILETYPE_FREEFORM",
-        0x02,
-    ),
-)
 
 
 class SwapError(RuntimeError):
@@ -84,33 +53,23 @@ class SwapError(RuntimeError):
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Replace the five SEA FFS files in a UEFI firmware image.",
+        description="Replace manifest-defined FFS files in a UEFI firmware image.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("input", type=Path, help="Input FD/BIN firmware image")
     parser.add_argument("output", type=Path, help="Output firmware image")
     parser.add_argument(
-        "--sea-binary-path",
+        "--manifest",
         type=Path,
-        required=True,
-        help="Directory containing the five SEA payload files",
+        default=DEFAULT_MANIFEST,
+        help="JSON replacement manifest; relative payload paths use the launch directory",
     )
     parser.add_argument(
         "--basetools",
         type=Path,
         default=DEFAULT_BASETOOLS,
-        help="EDK II BaseTools directory",
+        help="EDK II BaseTools directory containing Python sources and built tools",
     )
-    parser.add_argument(
-        "--tools-dir",
-        type=Path,
-        help="Directory containing GenSec, GenFfs, and compression tools",
-    )
-    parser.add_argument("--mm-core", type=Path, help="Override MmSupervisorCore.efi")
-    parser.add_argument("--mm-aux", type=Path, help="Override MmSupervisorCore.aux")
-    parser.add_argument("--mmi-entry", type=Path, help="Override MmiEntrySea.bin")
-    parser.add_argument("--stm", type=Path, help="Override Stm.bin")
-    parser.add_argument("--sea-manifest", type=Path, help="Override SeaManifest.bin")
     parser.add_argument(
         "--replace-all",
         action="store_true",
@@ -132,22 +91,121 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _resolve_payloads(args: argparse.Namespace) -> dict[str, Path]:
-    overrides = {
-        SEA_FILES[0].guid: args.mm_core,
-        SEA_FILES[1].guid: args.mm_aux,
-        SEA_FILES[2].guid: args.mmi_entry,
-        SEA_FILES[3].guid: args.stm,
-        SEA_FILES[4].guid: args.sea_manifest,
+def _load_manifest(path: Path) -> tuple[SeaFile, ...]:
+    try:
+        with path.open("r", encoding="utf-8") as manifest_file:
+            manifest = json.load(manifest_file)
+    except (OSError, json.JSONDecodeError) as error:
+        raise SwapError(f"Unable to load manifest {path}: {error}") from error
+
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1:
+        raise SwapError(f"Manifest {path} must have schema_version 1")
+    entries = manifest.get("files")
+    if not isinstance(entries, list) or not entries:
+        raise SwapError(f"Manifest {path} must contain a non-empty files array")
+
+    files = []
+    seen_guids = set()
+    required_fields = {
+        "name",
+        "guid",
+        "payload",
+        "section_type",
+        "ffs_type",
     }
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise SwapError(f"Manifest files[{index}] must be an object")
+        missing = required_fields - entry.keys()
+        if missing:
+            raise SwapError(
+                f"Manifest files[{index}] is missing: {', '.join(sorted(missing))}"
+            )
+        try:
+            guid = str(uuid.UUID(entry["guid"])).upper()
+        except (AttributeError, TypeError, ValueError) as error:
+            raise SwapError(
+                f"Manifest files[{index}] has invalid GUID: {entry['guid']!r}"
+            ) from error
+        if guid in seen_guids:
+            raise SwapError(f"Manifest contains duplicate GUID: {guid}")
+        seen_guids.add(guid)
+
+        if not isinstance(entry["section_type"], str):
+            raise SwapError(
+                f"Manifest files[{index}] section_type must be a string"
+            )
+        if not isinstance(entry["ffs_type"], str):
+            raise SwapError(f"Manifest files[{index}] ffs_type must be a string")
+        section_key = entry["section_type"].upper()
+        ffs_key = entry["ffs_type"].upper()
+        if section_key not in SECTION_TYPES:
+            raise SwapError(
+                f"Manifest files[{index}] has unsupported section_type: "
+                f"{entry['section_type']!r}"
+            )
+        if ffs_key not in FFS_TYPES:
+            raise SwapError(
+                f"Manifest files[{index}] has unsupported ffs_type: "
+                f"{entry['ffs_type']!r}"
+            )
+        if not isinstance(entry["name"], str) or not entry["name"]:
+            raise SwapError(f"Manifest files[{index}] name must be a non-empty string")
+        if not isinstance(entry["payload"], str) or not entry["payload"]:
+            raise SwapError(
+                f"Manifest files[{index}] payload must be a non-empty string"
+            )
+
+        section_type, section_type_value = SECTION_TYPES[section_key]
+        ffs_type, ffs_type_value = FFS_TYPES[ffs_key]
+        files.append(
+            SeaFile(
+                entry["name"],
+                guid,
+                entry["payload"],
+                section_type,
+                section_type_value,
+                ffs_type,
+                ffs_type_value,
+            )
+        )
+    return tuple(files)
+
+
+def _resolve_payloads(
+    sea_files: tuple[SeaFile, ...],
+) -> dict[str, Path]:
     payloads = {}
-    for sea_file in SEA_FILES:
-        path = overrides[sea_file.guid] or args.sea_binary_path / sea_file.default_filename
-        path = path.resolve()
+    for sea_file in sea_files:
+        path = Path(sea_file.payload_path).resolve()
         if not path.is_file():
             raise SwapError(f"Missing {sea_file.name} payload: {path}")
         payloads[sea_file.guid] = path
     return payloads
+
+
+def _find_tools_dir(basetools: Path) -> Path:
+    system = platform.system()
+    machine = platform.machine()
+    architecture = "ARM-64" if machine.lower() in ("arm64", "aarch64") else "x86"
+    candidates = [basetools / "Bin" / "Mu-Basetools_extdep" / f"{system}-{architecture}"]
+    if system == "Windows":
+        build_folders = ("Win32",) if machine.lower() in ("x86", "i386", "i686") else ("Win64", "Win32")
+        candidates.extend(basetools / "Bin" / folder for folder in build_folders)
+        suffix = ".exe"
+    else:
+        candidates.extend((basetools / "Bin" / f"{system}-{machine}", basetools / "Source" / "C" / "bin"))
+        suffix = ""
+
+    for directory in candidates:
+        if all((directory / f"{name}{suffix}").is_file() for name in ("GenSec", "GenFfs")):
+            return directory.resolve()
+    searched = ", ".join(str(directory) for directory in candidates)
+    raise SwapError(
+        f"Cannot find GenSec and GenFfs under {basetools}. "
+        "Build/download BaseTools for this host or use --basetools to select another installation. "
+        f"Searched: {searched}"
+    )
 
 
 def _find_tool(name: str, tools_dir: Optional[Path]) -> str:
@@ -184,12 +242,25 @@ def _load_fmmt(basetools: Path, tools_dir: Optional[Path]):
     sys.path.insert(0, str(fmmt_source))
     sys.path.insert(0, str(python_source))
 
+    original_directory = Path.cwd()
+    log_directory = tempfile.TemporaryDirectory(prefix="swap-sea-fmmt-log-")
     try:
-        from core.BiosTree import FFS_TREE, ROOT_TREE, SECTION_TREE
-        from core.FMMTOperation import ReplaceFfs
-        from core.FMMTParser import FMMTParser
+        os.chdir(log_directory.name)
+        try:
+            from core.BiosTree import FFS_TREE, ROOT_TREE, SECTION_TREE
+            from core.FMMTOperation import ReplaceFfs
+            from core.FMMTParser import FMMTParser
+        finally:
+            os.chdir(original_directory)
     except ImportError as error:
         raise SwapError(f"Unable to import FMMT from {fmmt_source}: {error}") from error
+    finally:
+        fmmt_logger = logging.getLogger("FMMT")
+        for handler in list(fmmt_logger.handlers):
+            if isinstance(handler, logging.FileHandler):
+                fmmt_logger.removeHandler(handler)
+                handler.close()
+        log_directory.cleanup()
 
     return FMMTParser, ReplaceFfs, ROOT_TREE, FFS_TREE, SECTION_TREE
 
@@ -201,7 +272,7 @@ def _parse_image(path: Path, fmmt_parser, root_tree):
     except Exception as error:
         raise SwapError(
             f"FMMT could not parse {path}: {error}\n"
-            "Build the EDK II BaseTools compression utilities and provide their directory with --tools-dir."
+            "Ensure the compression utilities are available in the selected BaseTools installation."
         ) from error
     return parser
 
@@ -325,7 +396,6 @@ def _swap(args: argparse.Namespace) -> None:
     input_path = args.input.resolve()
     output_path = args.output.resolve()
     basetools = args.basetools.resolve()
-    tools_dir = args.tools_dir.resolve() if args.tools_dir else None
 
     if not input_path.is_file():
         raise SwapError(f"Input image not found: {input_path}")
@@ -334,7 +404,10 @@ def _swap(args: argparse.Namespace) -> None:
     if output_path.exists():
         raise SwapError(f"Output already exists: {output_path}")
 
-    payloads = _resolve_payloads(args)
+    manifest_path = args.manifest.resolve()
+    sea_files = _load_manifest(manifest_path)
+    payloads = _resolve_payloads(sea_files)
+    tools_dir = _find_tools_dir(basetools)
     gen_sec = _find_tool("GenSec", tools_dir)
     gen_ffs = _find_tool("GenFfs", tools_dir)
     fmmt_parser, replace_ffs, root_tree, ffs_tree, section_tree = _load_fmmt(
@@ -343,10 +416,11 @@ def _swap(args: argparse.Namespace) -> None:
 
     print(f"Input:  {input_path}", flush=True)
     print(f"SHA256: {_sha256(input_path)}", flush=True)
+    print(f"Manifest: {manifest_path} ({len(sea_files)} files)", flush=True)
     print("Parsing and checking input image...", flush=True)
     parser = _parse_image(input_path, fmmt_parser, root_tree)
     files_to_replace = []
-    for sea_file in SEA_FILES:
+    for sea_file in sea_files:
         targets = _find_targets(
             parser.WholeFvTree,
             sea_file,
@@ -423,7 +497,7 @@ def _swap(args: argparse.Namespace) -> None:
         verify_start = time.perf_counter()
         print("Verifying final image and all replaced payloads...", flush=True)
         verified = _parse_image(current, fmmt_parser, root_tree)
-        for sea_file in SEA_FILES:
+        for sea_file in sea_files:
             _verify_payloads(
                 verified.WholeFvTree,
                 sea_file,
