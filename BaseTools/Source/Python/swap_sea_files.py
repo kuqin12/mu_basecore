@@ -59,12 +59,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("input", type=Path, help="Input FD/BIN firmware image")
     parser.add_argument("output", type=Path, help="Output firmware image")
     parser.add_argument(
+        "-m",
         "--manifest",
         type=Path,
         default=DEFAULT_MANIFEST,
         help="JSON replacement manifest; relative payload paths use the launch directory",
     )
     parser.add_argument(
+        "-b",
         "--basetools",
         type=Path,
         default=DEFAULT_BASETOOLS,
@@ -298,13 +300,6 @@ def _find_targets(
         )
 
     for target in matches:
-        actual_type = target.Data.Header.Type
-        if actual_type != sea_file.ffs_type_value:
-            raise SwapError(
-                f"{sea_file.guid} has FFS type 0x{actual_type:02X}; "
-                f"expected 0x{sea_file.ffs_type_value:02X}"
-            )
-
         sections = [
             child
             for child in target.Child
@@ -332,6 +327,12 @@ def _verify_payloads(
         root, sea_file, ffs_tree, section_tree, replace_all
     )
     for target in targets:
+        actual_type = target.Data.Header.Type
+        if actual_type != sea_file.ffs_type_value:
+            raise SwapError(
+                f"{sea_file.guid} has FFS type 0x{actual_type:02X}; "
+                f"expected 0x{sea_file.ffs_type_value:02X}"
+            )
         section = next(
             child
             for child in target.Child
@@ -353,7 +354,8 @@ def _targets_match_payload(
 ) -> bool:
     expected = payload.read_bytes()
     return all(
-        next(
+        target.Data.Header.Type == sea_file.ffs_type_value
+        and next(
             child
             for child in target.Child
             if child.type == section_tree
