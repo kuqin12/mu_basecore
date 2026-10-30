@@ -510,6 +510,7 @@
   # MU_CHANGE - Add DeviceStateLib to MdeModulePkg:
   MdeModulePkg/Library/DeviceStateLib/DeviceStateLib.inf
   MdeModulePkg/Library/BaseVariableFlashInfoLib/BaseVariableFlashInfoLib.inf
+  MdeModulePkg/Universal/Variable/Pei/VariableCacheHobsLib.inf
   MdeModulePkg/Library/PcdDatabaseLoaderLib/Pei/PcdDatabaseLoaderLibPei.inf   # MU_CHANGE
   MdeModulePkg/Library/PcdDatabaseLoaderLib/Dxe/PcdDatabaseLoaderLibDxe.inf   # MU_CHANGE
 
