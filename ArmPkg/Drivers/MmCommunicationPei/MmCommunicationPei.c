@@ -137,8 +137,10 @@ InitializeFfaCommunication (
 {
   EFI_STATUS              Status;
   EFI_FFA_PART_INFO_DESC  StmmPartInfo;
+  UINT32                  StmmPartInfoSize;
 
-  Status = ArmFfaLibGetPartitionInfo (&gEfiMmCommunication2ProtocolGuid, &StmmPartInfo);
+  StmmPartInfoSize = sizeof (EFI_FFA_PART_INFO_DESC);
+  Status = ArmFfaLibGetPartitionInfo (&gEfiMmCommunication2ProtocolGuid, &StmmPartInfo, &StmmPartInfoSize);
   if (EFI_ERROR (Status)) {
     DEBUG ((
       DEBUG_ERROR,
