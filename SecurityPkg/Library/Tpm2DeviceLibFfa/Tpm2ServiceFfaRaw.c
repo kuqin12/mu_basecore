@@ -100,12 +100,14 @@ FfaTpm2GetServicePartitionId (
 {
   EFI_STATUS              Status;
   EFI_FFA_PART_INFO_DESC  TpmPartInfo;
+  UINT32                  TpmPartInfoSize;
 
   if (PartitionId == NULL) {
     return EFI_INVALID_PARAMETER;
   }
 
-  Status = ArmFfaLibGetPartitionInfo (&gTpm2ServiceFfaGuid, &TpmPartInfo);
+  TpmPartInfoSize = sizeof (EFI_FFA_PART_INFO_DESC);
+  Status = ArmFfaLibGetPartitionInfo (&gTpm2ServiceFfaGuid, &TpmPartInfo, &TpmPartInfoSize);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "Failed to get Tpm2 partition info. Status: %r\n", Status));
     return Status;
