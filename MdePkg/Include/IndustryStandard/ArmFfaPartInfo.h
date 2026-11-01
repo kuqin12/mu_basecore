@@ -80,7 +80,7 @@ typedef union {
   UINT16    ProxyPartitionId;
 } EXEC_CONTEXT;
 
-/** Partition information Descriptor in the FF-A v1.2 spec.
+/** Partition information Descriptor in the FF-A v1.3 BETA0 spec.
  *  See FF-A spec chapter 6.2 partition discovery.
  */
 typedef struct {
@@ -95,4 +95,16 @@ typedef struct {
 
   /// UUID of partition
   UINT32          PartitionUuid[4];
+
+  /// Image ID of the partition
+  UINT32          ImageId[4];
+
+  /// Partition FF-A version
+  UINT32          PartitionFfaVersion;
+
+  /// Inter-partition protocol messages
+  UINT32          InterPartitionProtocolMsgs;
+
+  /// Reserved for future use
+  UINT8          Reserved[3];
 } EFI_FFA_PART_INFO_DESC;

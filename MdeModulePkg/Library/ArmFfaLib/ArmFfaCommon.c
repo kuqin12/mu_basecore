@@ -619,31 +619,34 @@ ArmFfaLibPartitionCountGetRegs (
   This function is supported by aarch64 only.
 
   @param [in]       ServiceGuid       Service guid.
-  @param [in,out]   PartDescCount     Number of PartDesc.
-                                      It'll return the copied number of
-                                      partition info in PartDesc.
+  @param [in, out]  PartDescSize      Return size of requested partition info related
+                                      to Service guid when PartDesc == NULL.
+                                      Otherwise return size of partition info
+                                      copied in PartDesc
+  @param [out]      Count             On successful return, number of partition info entries retrieved.
+                                      On buffer too small, the total number of partition info entries available.
   @param [out]      PartDesc          Partition information Buffer
 
   @retval EFI_SUCCESS
   @retval EFI_UNSUPPORTED
   @retval EFI_INVALID_PARAMETER
   @retval EFI_BUFFER_TOO_SMALL
-  @retval Other                       Error
+  @retval Other              Error
 
 **/
 EFI_STATUS
 EFIAPI
 ArmFfaLibPartitionInfoGetRegs (
   IN EFI_GUID                 *ServiceGuid,
-  IN OUT UINT32               *PartDescCount,
-  OUT EFI_FFA_PART_INFO_DESC  *PartDesc
+  IN OUT UINT32               *PartDescSize,
+  OUT UINT16                  *Count,
+  OUT VOID                    *PartDesc OPTIONAL
   )
 {
   EFI_STATUS    Status;
   ARM_FFA_ARGS  FfaArgs;
   UINT64        Uuid[2];
-  UINT32        DescCount;
-  UINT16        Count;
+  UINT16        LocalCount;
   UINT16        PrevIdx;
   UINT16        StartIdx;
   UINT16        CurIdx;
@@ -651,14 +654,17 @@ ArmFfaLibPartitionInfoGetRegs (
   UINT16        Idx;
   UINT16        DescSize;
   UINTN         *Regs;
+  UINT32        BufferCapacity;
 
-  if ((PartDescCount == NULL) || (PartDesc == NULL)) {
+  if ((PartDescSize == NULL) || (Count == NULL)) {
     return EFI_INVALID_PARAMETER;
   }
 
-  if (*PartDescCount == 0) {
-    return EFI_BUFFER_TOO_SMALL;
+  if ((PartDesc == NULL) && (*PartDescSize != 0)) {
+    return EFI_INVALID_PARAMETER;
   }
+
+  BufferCapacity = *PartDescSize;
 
   if (ServiceGuid != NULL) {
     ConvertGuidToUuid (ServiceGuid, (GUID *)Uuid);
@@ -668,7 +674,7 @@ ArmFfaLibPartitionInfoGetRegs (
 
   PrevIdx   = 0;
   Tag       = 0;
-  DescCount = *PartDescCount;
+  *Count    = 0;
 
   do {
     StartIdx = (PrevIdx == 0) ? 0 : PrevIdx + 1;
@@ -687,7 +693,7 @@ ArmFfaLibPartitionInfoGetRegs (
       return Status;
     }
 
-    Count = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_LAST_IDX_SHIFT) &
+    LocalCount = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_LAST_IDX_SHIFT) &
              FFA_PART_INFO_IDX_MASK) + 1;
 
     CurIdx = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_CURRENT_IDX_SHIFT) &
@@ -697,24 +703,44 @@ ArmFfaLibPartitionInfoGetRegs (
     DescSize = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_DESC_SIZE_SHIFT) &
                 FFA_PART_INFO_DESC_SIZE_MASK);
 
-    if (DescSize != sizeof (EFI_FFA_PART_INFO_DESC)) {
+    if (DescSize > sizeof (EFI_FFA_PART_INFO_DESC)) {
       return EFI_INVALID_PARAMETER;
+    }
+
+    if (CurIdx < StartIdx) {
+      return EFI_INVALID_PARAMETER;
+    }
+
+    if (PartDesc == NULL) {
+      *Count = LocalCount;
+      *PartDescSize = DescSize * LocalCount;
+      return EFI_BUFFER_TOO_SMALL;
     }
 
     Regs = &FfaArgs.Arg3;
     for (Idx = 0; Idx < (CurIdx - StartIdx) + 1; Idx++) {
-      CopyMem (PartDesc, Regs, DescSize);
-      Regs += sizeof (EFI_FFA_PART_INFO_DESC) / sizeof (UINTN);
-      PartDesc++;
-      if (--DescCount == 0) {
+      if (BufferCapacity < DescSize) {
+        if (Idx == 0) {
+          // If the buffer is too small for the first descriptor, update the required size and return error.
+          *Count = LocalCount;
+          *PartDescSize = DescSize * LocalCount;
+          return EFI_BUFFER_TOO_SMALL;
+        }
         break;
       }
+
+      CopyMem (PartDesc, Regs, DescSize);
+      *Count = *Count + 1;
+      Regs += DescSize / sizeof (UINTN);
+      PartDesc = (EFI_FFA_PART_INFO_DESC *)((UINT8 *)PartDesc + DescSize);
+
+      BufferCapacity = BufferCapacity - DescSize;
     }
 
     PrevIdx = CurIdx;
-  } while (CurIdx < (Count - 1) && (DescCount != 0));
+  } while (CurIdx < (LocalCount - 1) && (BufferCapacity >= DescSize));
 
-  *PartDescCount -= DescCount;
+  *PartDescSize = *PartDescSize - BufferCapacity;
 
   return EFI_SUCCESS;
 }
@@ -981,11 +1007,11 @@ ArmFfaLibCommonInit (
   a service GUID via registers.
 
   @param [in]       ServiceGuid       Service guid.
-  @param [in, out]  PartDescCount     Return number of partition info related to
-                                      Service guid when PartDesc == NULL.
-                                      Otherwise return number of partition info
-                                      copied in ParcDesc
-  @param [out]      PartDesc          Partition information Buffer
+  @param [out]      PartDesc          Partition information Buffer, optional.
+  @param [in, out]  PartDescSize      Return size of requested partition info related
+                                      to Service guid when PartDesc == NULL.
+                                      Otherwise return size of partition info
+                                      copied in PartDesc
 
   @retval EFI_SUCCESS
   @retval EFI_UNSUPPORTED
@@ -997,7 +1023,8 @@ EFI_STATUS
 EFIAPI
 ArmFfaLibGetPartitionInfo (
   IN EFI_GUID                 *ServiceGuid,
-  OUT EFI_FFA_PART_INFO_DESC  *PartDesc
+  OUT VOID                    *PartDesc OPTIONAL,
+  IN OUT UINT32               *PartDescSize
   )
 {
   EFI_STATUS  Status;
@@ -1005,19 +1032,26 @@ ArmFfaLibGetPartitionInfo (
   UINT64      TxBufferSize;
   VOID        *RxBuffer;
   UINT64      RxBufferSize;
-  UINT32      Count;
+  UINT16      RegCount;
+  UINT32      RxCount;
   UINT32      Size;
   UINT16      PartId;
+  UINT32      BufferCapacity;
 
-  if (PartDesc == NULL) {
+  if (PartDescSize == NULL) {
     return EFI_INVALID_PARAMETER;
   }
 
-  Count = 1;
+  if ((PartDesc == NULL) && (*PartDescSize != 0)) {
+    return EFI_INVALID_PARAMETER;
+  }
 
-  Status = ArmFfaLibPartitionInfoGetRegs (ServiceGuid, &Count, PartDesc);
-  if (!EFI_ERROR (Status)) {
-    return EFI_SUCCESS;
+  BufferCapacity = *PartDescSize;
+  Status = ArmFfaLibPartitionInfoGetRegs (ServiceGuid, PartDescSize, &RegCount, PartDesc);
+  if ((Status == EFI_SUCCESS) || (Status == EFI_BUFFER_TOO_SMALL)) {
+    // If the partition info could be retrieved via registers, return immediately.
+    *PartDescSize = *PartDescSize / RegCount;
+    return Status;
   }
 
   Status = ArmFfaLibGetRxTxBuffers (
@@ -1039,7 +1073,7 @@ ArmFfaLibGetPartitionInfo (
   Status = ArmFfaLibPartitionInfoGet (
              ServiceGuid,
              FFA_PART_INFO_FLAG_TYPE_DESC,
-             &Count,
+             &RxCount,
              &Size
              );
   if (EFI_ERROR (Status)) {
@@ -1051,12 +1085,13 @@ ArmFfaLibGetPartitionInfo (
     return Status;
   }
 
-  if ((Size < sizeof (EFI_FFA_PART_INFO_DESC))) {
+  *PartDescSize = Size;
+  if ((Size > BufferCapacity)) {
     ArmFfaLibRxRelease (PartId);
-    return EFI_INVALID_PARAMETER;
+    return EFI_BUFFER_TOO_SMALL;
   }
 
-  CopyMem (PartDesc, RxBuffer, sizeof (EFI_FFA_PART_INFO_DESC));
+  CopyMem (PartDesc, RxBuffer, Size);
   ArmFfaLibRxRelease (PartId);
 
   return EFI_SUCCESS;
