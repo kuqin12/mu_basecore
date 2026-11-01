@@ -117,6 +117,7 @@ Tcg2ConfigFfaPeimEntryPoint (
   UINTN                         Size;
   UINT16                        TpmPartId;
   EFI_FFA_PART_INFO_DESC        TpmPartInfo;
+  UINT32                        TpmPartInfoSize;
   CONST EFI_PEI_PPI_DESCRIPTOR  *PpiList;
   GUID                          *TpmInstanceGuid;
 
@@ -125,7 +126,8 @@ Tcg2ConfigFfaPeimEntryPoint (
   TpmInstanceGuid = &gEfiTpmDeviceInstanceNoneGuid;
   PpiList         = &mTpmInitializationDonePpiList;
 
-  Status = ArmFfaLibGetPartitionInfo (&gTpm2ServiceFfaGuid, &TpmPartInfo);
+  TpmPartInfoSize = sizeof (EFI_FFA_PART_INFO_DESC);
+  Status = ArmFfaLibGetPartitionInfo (&gTpm2ServiceFfaGuid, &TpmPartInfo, &TpmPartInfoSize);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "Failed to get Tpm2 partition info. Status: %r\n", Status));
     goto Cleanup;
