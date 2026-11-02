@@ -1,0 +1,27 @@
+#/** @file
+#
+#  Component description file for ArmFfaNotificationLib
+#
+#  Copyright (c), Microsoft Corporation.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 1.29
+  BASE_NAME                      = ArmFfaNotificationLib
+  FILE_GUID                      = F5A2FC1F-6869-4E45-A865-9CD50FBC6DFC
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ArmFfaNotificationLib
+
+[Sources.common]
+  ArmFfaNotificationLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  ArmFfaLib
+  DebugLib
