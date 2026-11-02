@@ -96,3 +96,32 @@ typedef struct {
   /// UUID of partition
   UINT32          PartitionUuid[4];
 } EFI_FFA_PART_INFO_DESC;
+
+/** Partition information Descriptor in the FF-A v1.3 BETA0 spec.
+ *  See FF-A spec chapter 6.2 partition discovery.
+ */
+typedef struct {
+  /// Partition id
+  UINT16          PartitionId;
+
+  /// Execution context count or Proxy partition id
+  EXEC_CONTEXT    ExecContextCountOrProxyPartitionId;
+
+  /// Flags to determine partition properties
+  UINT32          PartitionProps;
+
+  /// UUID of partition
+  UINT32          PartitionUuid[4];
+
+  /// Image ID of the partition
+  UINT32          ImageId[4];
+
+  /// Partition FF-A version
+  UINT32          PartitionFfaVersion;
+
+  /// Inter-partition protocol messages
+  UINT8           InterPartitionProtocolMsgs;
+
+  /// Reserved for future use
+  UINT8           Reserved[3];
+} EFI_FFA_PART_INFO_DESC_V1_3;
