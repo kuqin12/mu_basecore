@@ -720,6 +720,139 @@ ArmFfaLibPartitionInfoGetRegs (
 }
 
 /**
+  Get Partition info via registers.
+  This function is supported by aarch64 only.
+
+  @param [in]       ServiceGuid       Service guid.
+  @param [in, out]  PartDescSize      Return size of requested partition info related
+                                      to Service guid when PartDesc == NULL.
+                                      Otherwise return size of partition info
+                                      copied in PartDesc
+  @param [out]      Count             On successful return, number of partition info entries retrieved.
+                                      On buffer too small, the total number of partition info entries available.
+  @param [out]      PartDesc          Partition information Buffer
+
+  @retval EFI_SUCCESS
+  @retval EFI_UNSUPPORTED
+  @retval EFI_INVALID_PARAMETER
+  @retval EFI_BUFFER_TOO_SMALL
+  @retval Other              Error
+
+**/
+EFI_STATUS
+EFIAPI
+ArmFfaLibPartitionInfoGetRegsEx (
+  IN EFI_GUID    *ServiceGuid,
+  IN OUT UINT32  *PartDescSize,
+  OUT UINT32     *Count,
+  OUT VOID       *PartDesc OPTIONAL
+  )
+{
+  EFI_STATUS    Status;
+  ARM_FFA_ARGS  FfaArgs;
+  UINT64        Uuid[2];
+  UINT32        LocalCount;
+  UINT16        PrevIdx;
+  UINT16        StartIdx;
+  UINT16        CurIdx;
+  UINT16        Tag;
+  UINT16        Idx;
+  UINT16        DescSize;
+  UINTN         *Regs;
+  UINT32        BufferCapacity;
+
+  if ((PartDescSize == NULL) || (Count == NULL)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  if ((PartDesc == NULL) && (*PartDescSize != 0)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  BufferCapacity = *PartDescSize;
+
+  if (ServiceGuid != NULL) {
+    ConvertGuidToUuid (ServiceGuid, (GUID *)Uuid);
+  } else {
+    ZeroMem (Uuid, sizeof (Uuid));
+  }
+
+  PrevIdx = 0;
+  Tag     = 0;
+  *Count  = 0;
+
+  do {
+    StartIdx = (PrevIdx == 0) ? 0 : PrevIdx + 1;
+
+    ZeroMem (&FfaArgs, sizeof (ARM_FFA_ARGS));
+
+    FfaArgs.Arg0 = ARM_FID_FFA_PARTITION_INFO_GET_REGS;
+    FfaArgs.Arg1 = Uuid[0];
+    FfaArgs.Arg2 = Uuid[1];
+    FfaArgs.Arg3 = (Tag << FFA_PART_INFO_START_TAG_SHIFT) | StartIdx;
+
+    ArmCallFfa (&FfaArgs);
+
+    Status = FfaArgsToEfiStatus (&FfaArgs);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+
+    LocalCount = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_LAST_IDX_SHIFT) &
+                  FFA_PART_INFO_IDX_MASK) + 1;
+
+    CurIdx = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_CURRENT_IDX_SHIFT) &
+              FFA_PART_INFO_IDX_MASK);
+    Tag = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_TAG_SHIFT) &
+           FFA_PART_INFO_TAG_MASK);
+    DescSize = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_DESC_SIZE_SHIFT) &
+                FFA_PART_INFO_DESC_SIZE_MASK);
+
+    // It really should be at least the size of EFI_FFA_PART_INFO_DESC...
+    if (DescSize < sizeof (EFI_FFA_PART_INFO_DESC)) {
+      return EFI_INVALID_PARAMETER;
+    }
+
+    if (CurIdx < StartIdx) {
+      return EFI_INVALID_PARAMETER;
+    }
+
+    if (PartDesc == NULL) {
+      *Count        = LocalCount;
+      *PartDescSize = DescSize * LocalCount;
+      return EFI_BUFFER_TOO_SMALL;
+    }
+
+    Regs = &FfaArgs.Arg3;
+    for (Idx = 0; Idx < (CurIdx - StartIdx) + 1; Idx++) {
+      if (BufferCapacity < DescSize) {
+        if (Idx == 0) {
+          // If the buffer is too small for the first descriptor, update the required size and return error.
+          *Count        = LocalCount;
+          *PartDescSize = DescSize * LocalCount;
+          return EFI_BUFFER_TOO_SMALL;
+        }
+
+        break;
+      }
+
+      CopyMem (PartDesc, Regs, DescSize);
+      *Count   = *Count + 1;
+      Regs    += DescSize / sizeof (UINTN);
+      PartDesc = ((UINT8 *)PartDesc + DescSize);
+
+      BufferCapacity = BufferCapacity - DescSize;
+    }
+
+    PrevIdx = CurIdx;
+  } while (CurIdx < (LocalCount - 1) && (BufferCapacity >= DescSize));
+
+  *PartDescSize = *PartDescSize - BufferCapacity;
+
+  return EFI_SUCCESS;
+}
+
+/**
   Restore the context which was interrupted with FFA_INTERRUPT (EFI_INTERRUPT_PENDING).
 
   @param [in]   PartId       Partition id
@@ -1057,6 +1190,101 @@ ArmFfaLibGetPartitionInfo (
   }
 
   CopyMem (PartDesc, RxBuffer, sizeof (EFI_FFA_PART_INFO_DESC));
+  ArmFfaLibRxRelease (PartId);
+
+  return EFI_SUCCESS;
+}
+
+/**
+  Helper to retrieve the first partition information associated with
+  a service GUID via registers.
+
+  @param [in]       ServiceGuid       Service guid.
+  @param [out]      PartDesc          Partition information Buffer, optional.
+  @param [in, out]  PartDescSize      Return size of requested partition info related
+                                      to Service guid when PartDesc == NULL.
+                                      Otherwise return size of partition info
+                                      copied in PartDesc
+
+  @retval EFI_SUCCESS
+  @retval EFI_UNSUPPORTED
+  @retval EFI_INVALID_PARAMETER
+  @retval Other                       Error
+
+**/
+EFI_STATUS
+EFIAPI
+ArmFfaLibGetPartitionInfoEx (
+  IN EFI_GUID    *ServiceGuid,
+  OUT VOID       *PartDesc OPTIONAL,
+  IN OUT UINT32  *PartDescSize
+  )
+{
+  EFI_STATUS  Status;
+  VOID        *TxBuffer;
+  UINT64      TxBufferSize;
+  VOID        *RxBuffer;
+  UINT64      RxBufferSize;
+  UINT32      RegCount;
+  UINT32      RxCount;
+  UINT32      Size;
+  UINT16      PartId;
+  UINT32      BufferCapacity;
+
+  if (PartDescSize == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  if ((PartDesc == NULL) && (*PartDescSize != 0)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  BufferCapacity = *PartDescSize;
+  Status         = ArmFfaLibPartitionInfoGetRegsEx (ServiceGuid, PartDescSize, &RegCount, PartDesc);
+  if ((Status == EFI_SUCCESS) || (Status == EFI_BUFFER_TOO_SMALL)) {
+    // If the partition info could be retrieved via registers, return immediately.
+    *PartDescSize = *PartDescSize / RegCount;
+    return Status;
+  }
+
+  Status = ArmFfaLibGetRxTxBuffers (
+             &TxBuffer,
+             &TxBufferSize,
+             &RxBuffer,
+             &RxBufferSize
+             );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: Failed to get Rx/Tx Buffer. Status: %r\n",
+      __func__,
+      Status
+      ));
+    return Status;
+  }
+
+  Status = ArmFfaLibPartitionInfoGet (
+             ServiceGuid,
+             FFA_PART_INFO_FLAG_TYPE_DESC,
+             &RxCount,
+             &Size
+             );
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  Status = ArmFfaLibGetPartId (&PartId);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  *PartDescSize = Size;
+  if ((Size > BufferCapacity)) {
+    ArmFfaLibRxRelease (PartId);
+    return EFI_BUFFER_TOO_SMALL;
+  }
+
+  CopyMem (PartDesc, RxBuffer, Size);
   ArmFfaLibRxRelease (PartId);
 
   return EFI_SUCCESS;
