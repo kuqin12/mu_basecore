@@ -752,7 +752,6 @@ ArmFfaLibPartitionInfoGetRegsEx (
   ARM_FFA_ARGS  FfaArgs;
   UINT64        Uuid[2];
   UINT32        LocalCount;
-  UINT16        PrevIdx;
   UINT16        StartIdx;
   UINT16        CurIdx;
   UINT16        Tag;
@@ -777,13 +776,11 @@ ArmFfaLibPartitionInfoGetRegsEx (
     ZeroMem (Uuid, sizeof (Uuid));
   }
 
-  PrevIdx = 0;
   Tag     = 0;
   *Count  = 0;
 
+  StartIdx = 0;
   do {
-    StartIdx = (PrevIdx == 0) ? 0 : PrevIdx + 1;
-
     ZeroMem (&FfaArgs, sizeof (ARM_FFA_ARGS));
 
     FfaArgs.Arg0 = ARM_FID_FFA_PARTITION_INFO_GET_REGS;
@@ -844,7 +841,7 @@ ArmFfaLibPartitionInfoGetRegsEx (
       BufferCapacity = BufferCapacity - DescSize;
     }
 
-    PrevIdx = CurIdx;
+    StartIdx = CurIdx + 1;
   } while (CurIdx < (LocalCount - 1) && (BufferCapacity >= DescSize));
 
   *PartDescSize = *PartDescSize - BufferCapacity;
