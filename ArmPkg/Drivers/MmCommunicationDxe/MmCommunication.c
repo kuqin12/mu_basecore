@@ -14,8 +14,8 @@
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/DxeServicesTableLib.h>
-#include <Library/MemoryAllocationLib.h>
 #include <Library/HobLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
