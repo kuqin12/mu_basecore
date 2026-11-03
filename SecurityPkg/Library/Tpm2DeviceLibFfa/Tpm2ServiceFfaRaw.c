@@ -21,9 +21,9 @@
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/Tpm2DeviceLib.h>
 #include <Library/ArmFfaLib.h>
-#include <Library/MemoryAllocationLib.h>
 
 #include "Tpm2DeviceLibFfa.h"
 
