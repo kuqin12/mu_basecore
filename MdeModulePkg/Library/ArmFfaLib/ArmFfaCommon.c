@@ -560,6 +560,129 @@ ArmFfaLibYield (
   return FfaArgsToEfiStatus (&FfaArgs);
 }
 
+//
+// Iteration state for FFA_PARTITION_INFO_GET_REGS.
+//
+typedef struct {
+  UINT64     Uuid[2];
+  UINT16     NextIndex;
+  UINT16     Tag;
+  BOOLEAN    Complete;
+} PART_INFO_REGS_CURSOR;
+
+//
+// Descriptors returned by one FFA_PARTITION_INFO_GET_REGS invocation.
+// Entries points into Args, so a page must not be copied.
+//
+typedef struct {
+  UINT32          TotalCount;
+  UINT32          EntryCount;
+  UINT16          DescSize;
+  CONST UINT8     *Entries;
+  ARM_FFA_ARGS    Args;
+} PART_INFO_REGS_PAGE;
+
+/**
+  Initialize a cursor to enumerate partition information via registers.
+
+  @param [in]   ServiceGuid       Service guid, or NULL for all partitions.
+  @param [out]  Cursor            Cursor positioned at the first descriptor.
+
+**/
+STATIC
+VOID
+PartitionInfoRegsCursorInit (
+  IN  EFI_GUID               *ServiceGuid OPTIONAL,
+  OUT PART_INFO_REGS_CURSOR  *Cursor
+  )
+{
+  if (Cursor == NULL) {
+    return;
+  }
+
+  ZeroMem (Cursor, sizeof (*Cursor));
+  if (ServiceGuid != NULL) {
+    ConvertGuidToUuid (ServiceGuid, (GUID *)Cursor->Uuid);
+  }
+}
+
+/**
+  Retrieve the next page of partition information descriptors via registers.
+
+  On success, the cursor is advanced past the returned descriptors.
+
+  @param [in, out]  Cursor          Enumeration state.
+  @param [out]      Page            Descriptors returned by this invocation.
+
+  @retval EFI_SUCCESS               A page was returned.
+  @retval EFI_INVALID_PARAMETER     The response metadata is malformed.
+  @retval Other                     The FF-A call failed.
+
+**/
+STATIC
+EFI_STATUS
+PartitionInfoRegsGetNextPage (
+  IN OUT PART_INFO_REGS_CURSOR  *Cursor,
+  OUT    PART_INFO_REGS_PAGE    *Page
+  )
+{
+  EFI_STATUS  Status;
+  UINT64      Metadata;
+  UINT16      LastIndex;
+  UINT16      CurrentIndex;
+
+  if ((Cursor == NULL) || (Page == NULL)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  ASSERT (!Cursor->Complete);
+
+  ZeroMem (&Page->Args, sizeof (Page->Args));
+  Page->Args.Arg0 = ARM_FID_FFA_PARTITION_INFO_GET_REGS;
+  Page->Args.Arg1 = Cursor->Uuid[0];
+  Page->Args.Arg2 = Cursor->Uuid[1];
+  Page->Args.Arg3 = ((UINTN)Cursor->Tag << FFA_PART_INFO_START_TAG_SHIFT) |
+                    ((UINTN)Cursor->NextIndex << FFA_PART_INFO_START_IDX_SHIFT);
+
+  ArmCallFfa (&Page->Args);
+
+  Status = FfaArgsToEfiStatus (&Page->Args);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  Metadata       = Page->Args.Arg2;
+  LastIndex      = (UINT16)((Metadata >> FFA_PART_INFO_METADATA_LAST_IDX_SHIFT) & FFA_PART_INFO_IDX_MASK);
+  CurrentIndex   = (UINT16)((Metadata >> FFA_PART_INFO_METADATA_CURRENT_IDX_SHIFT) & FFA_PART_INFO_IDX_MASK);
+  Page->DescSize = (UINT16)((Metadata >> FFA_PART_INFO_METADATA_DESC_SIZE_SHIFT) & FFA_PART_INFO_DESC_SIZE_MASK);
+
+  if ((CurrentIndex < Cursor->NextIndex) || (CurrentIndex > LastIndex) ||
+      (Page->DescSize < sizeof (EFI_FFA_PART_INFO_DESC)))
+  {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Page->TotalCount = (UINT32)LastIndex + 1;
+  Page->EntryCount = (UINT32)CurrentIndex - Cursor->NextIndex + 1;
+
+  //
+  // Descriptors are returned in x3 - x17.
+  //
+  if ((Page->EntryCount * Page->DescSize) > (sizeof (Page->Args) - OFFSET_OF (ARM_FFA_ARGS, Arg3))) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Page->Entries = (CONST UINT8 *)&Page->Args.Arg3;
+
+  Cursor->Tag      = (UINT16)((Metadata >> FFA_PART_INFO_METADATA_TAG_SHIFT) & FFA_PART_INFO_TAG_MASK);
+  Cursor->Complete = (BOOLEAN)(CurrentIndex == LastIndex);
+  if (!Cursor->Complete) {
+    Cursor->NextIndex = CurrentIndex + 1;
+  }
+
+  return EFI_SUCCESS;
+}
+
 /**
   Get number of Partitions via registers.
   This function is supported by aarch64 only.
@@ -581,35 +704,21 @@ ArmFfaLibPartitionCountGetRegs (
   OUT UINT32    *PartDescCount
   )
 {
-  EFI_STATUS    Status;
-  ARM_FFA_ARGS  FfaArgs;
-  UINT64        Uuid[2];
+  EFI_STATUS             Status;
+  PART_INFO_REGS_CURSOR  Cursor;
+  PART_INFO_REGS_PAGE    Page;
 
   if (PartDescCount == NULL) {
     return EFI_INVALID_PARAMETER;
   }
 
-  if (ServiceGuid != NULL) {
-    ConvertGuidToUuid (ServiceGuid, (GUID *)Uuid);
-  } else {
-    ZeroMem (Uuid, sizeof (Uuid));
-  }
-
-  ZeroMem (&FfaArgs, sizeof (ARM_FFA_ARGS));
-
-  FfaArgs.Arg0 = ARM_FID_FFA_PARTITION_INFO_GET_REGS;
-  FfaArgs.Arg1 = Uuid[0];
-  FfaArgs.Arg2 = Uuid[1];
-
-  ArmCallFfa (&FfaArgs);
-
-  Status = FfaArgsToEfiStatus (&FfaArgs);
+  PartitionInfoRegsCursorInit (ServiceGuid, &Cursor);
+  Status = PartitionInfoRegsGetNextPage (&Cursor, &Page);
   if (EFI_ERROR (Status)) {
     return Status;
   }
 
-  *PartDescCount = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_LAST_IDX_SHIFT) &
-                    FFA_PART_INFO_IDX_MASK) + 1;
+  *PartDescCount = Page.TotalCount;
 
   return EFI_SUCCESS;
 }
@@ -639,18 +748,11 @@ ArmFfaLibPartitionInfoGetRegs (
   OUT EFI_FFA_PART_INFO_DESC  *PartDesc
   )
 {
-  EFI_STATUS    Status;
-  ARM_FFA_ARGS  FfaArgs;
-  UINT64        Uuid[2];
-  UINT32        DescCount;
-  UINT16        Count;
-  UINT16        PrevIdx;
-  UINT16        StartIdx;
-  UINT16        CurIdx;
-  UINT16        Tag;
-  UINT16        Idx;
-  UINT16        DescSize;
-  UINTN         *Regs;
+  EFI_STATUS             Status;
+  PART_INFO_REGS_CURSOR  Cursor;
+  PART_INFO_REGS_PAGE    Page;
+  UINT32                 Copied;
+  UINT32                 ToCopy;
 
   if ((PartDescCount == NULL) || (PartDesc == NULL)) {
     return EFI_INVALID_PARAMETER;
@@ -660,61 +762,26 @@ ArmFfaLibPartitionInfoGetRegs (
     return EFI_BUFFER_TOO_SMALL;
   }
 
-  if (ServiceGuid != NULL) {
-    ConvertGuidToUuid (ServiceGuid, (GUID *)Uuid);
-  } else {
-    ZeroMem (Uuid, sizeof (Uuid));
-  }
-
-  PrevIdx   = 0;
-  Tag       = 0;
-  DescCount = *PartDescCount;
+  PartitionInfoRegsCursorInit (ServiceGuid, &Cursor);
+  Copied = 0;
 
   do {
-    StartIdx = (PrevIdx == 0) ? 0 : PrevIdx + 1;
-
-    ZeroMem (&FfaArgs, sizeof (ARM_FFA_ARGS));
-
-    FfaArgs.Arg0 = ARM_FID_FFA_PARTITION_INFO_GET_REGS;
-    FfaArgs.Arg1 = Uuid[0];
-    FfaArgs.Arg2 = Uuid[1];
-    FfaArgs.Arg3 = (Tag << FFA_PART_INFO_START_TAG_SHIFT) | StartIdx;
-
-    ArmCallFfa (&FfaArgs);
-
-    Status = FfaArgsToEfiStatus (&FfaArgs);
+    Status = PartitionInfoRegsGetNextPage (&Cursor, &Page);
     if (EFI_ERROR (Status)) {
       return Status;
     }
 
-    Count = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_LAST_IDX_SHIFT) &
-             FFA_PART_INFO_IDX_MASK) + 1;
-
-    CurIdx = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_CURRENT_IDX_SHIFT) &
-              FFA_PART_INFO_IDX_MASK);
-    Tag = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_TAG_SHIFT) &
-           FFA_PART_INFO_TAG_MASK);
-    DescSize = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_DESC_SIZE_SHIFT) &
-                FFA_PART_INFO_DESC_SIZE_MASK);
-
-    if (DescSize != sizeof (EFI_FFA_PART_INFO_DESC)) {
+    // This interface returns the fixed EFI_FFA_PART_INFO_DESC layout only.
+    if (Page.DescSize != sizeof (EFI_FFA_PART_INFO_DESC)) {
       return EFI_INVALID_PARAMETER;
     }
 
-    Regs = &FfaArgs.Arg3;
-    for (Idx = 0; Idx < (CurIdx - StartIdx) + 1; Idx++) {
-      CopyMem (PartDesc, Regs, DescSize);
-      Regs += sizeof (EFI_FFA_PART_INFO_DESC) / sizeof (UINTN);
-      PartDesc++;
-      if (--DescCount == 0) {
-        break;
-      }
-    }
+    ToCopy = MIN (Page.EntryCount, *PartDescCount - Copied);
+    CopyMem (&PartDesc[Copied], Page.Entries, ToCopy * sizeof (EFI_FFA_PART_INFO_DESC));
+    Copied += ToCopy;
+  } while (!Cursor.Complete && (Copied < *PartDescCount));
 
-    PrevIdx = CurIdx;
-  } while (CurIdx < (Count - 1) && (DescCount != 0));
-
-  *PartDescCount -= DescCount;
+  *PartDescCount = Copied;
 
   return EFI_SUCCESS;
 }
@@ -748,17 +815,13 @@ ArmFfaLibPartitionInfoGetRegsEx (
   OUT VOID       *PartDesc OPTIONAL
   )
 {
-  EFI_STATUS    Status;
-  ARM_FFA_ARGS  FfaArgs;
-  UINT64        Uuid[2];
-  UINT32        LocalCount;
-  UINT16        StartIdx;
-  UINT16        CurIdx;
-  UINT16        Tag;
-  UINT16        Idx;
-  UINT16        DescSize;
-  UINTN         *Regs;
-  UINT32        BufferCapacity;
+  EFI_STATUS             Status;
+  PART_INFO_REGS_CURSOR  Cursor;
+  PART_INFO_REGS_PAGE    Page;
+  UINT8                  *Output;
+  UINT32                 Remaining;
+  UINT32                 ToCopy;
+  UINT16                 DescSize;
 
   if ((PartDescSize == NULL) || (Count == NULL)) {
     return EFI_INVALID_PARAMETER;
@@ -768,83 +831,39 @@ ArmFfaLibPartitionInfoGetRegsEx (
     return EFI_INVALID_PARAMETER;
   }
 
-  BufferCapacity = *PartDescSize;
+  PartitionInfoRegsCursorInit (ServiceGuid, &Cursor);
+  Output    = PartDesc;
+  Remaining = *PartDescSize;
+  DescSize  = 0;
+  *Count    = 0;
 
-  if (ServiceGuid != NULL) {
-    ConvertGuidToUuid (ServiceGuid, (GUID *)Uuid);
-  } else {
-    ZeroMem (Uuid, sizeof (Uuid));
-  }
-
-  Tag     = 0;
-  *Count  = 0;
-
-  StartIdx = 0;
   do {
-    ZeroMem (&FfaArgs, sizeof (ARM_FFA_ARGS));
-
-    FfaArgs.Arg0 = ARM_FID_FFA_PARTITION_INFO_GET_REGS;
-    FfaArgs.Arg1 = Uuid[0];
-    FfaArgs.Arg2 = Uuid[1];
-    FfaArgs.Arg3 = (Tag << FFA_PART_INFO_START_TAG_SHIFT) | StartIdx;
-
-    ArmCallFfa (&FfaArgs);
-
-    Status = FfaArgsToEfiStatus (&FfaArgs);
+    Status = PartitionInfoRegsGetNextPage (&Cursor, &Page);
     if (EFI_ERROR (Status)) {
       return Status;
     }
 
-    LocalCount = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_LAST_IDX_SHIFT) &
-                  FFA_PART_INFO_IDX_MASK) + 1;
-
-    CurIdx = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_CURRENT_IDX_SHIFT) &
-              FFA_PART_INFO_IDX_MASK);
-    Tag = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_TAG_SHIFT) &
-           FFA_PART_INFO_TAG_MASK);
-    DescSize = ((FfaArgs.Arg2 >> FFA_PART_INFO_METADATA_DESC_SIZE_SHIFT) &
-                FFA_PART_INFO_DESC_SIZE_MASK);
-
-    // It really should be at least the size of EFI_FFA_PART_INFO_DESC...
-    if (DescSize < sizeof (EFI_FFA_PART_INFO_DESC)) {
+    // Callers walk the output buffer with a single stride.
+    if ((DescSize != 0) && (Page.DescSize != DescSize)) {
       return EFI_INVALID_PARAMETER;
     }
 
-    if (CurIdx < StartIdx) {
-      return EFI_INVALID_PARAMETER;
-    }
-
-    if (PartDesc == NULL) {
-      *Count        = LocalCount;
-      *PartDescSize = DescSize * LocalCount;
+    DescSize = Page.DescSize;
+    ToCopy   = MIN (Page.EntryCount, Remaining / DescSize);
+    if (ToCopy == 0) {
+      // Size query, or the buffer cannot hold a single descriptor.
+      *Count        = Page.TotalCount;
+      *PartDescSize = Page.TotalCount * DescSize;
       return EFI_BUFFER_TOO_SMALL;
     }
 
-    Regs = &FfaArgs.Arg3;
-    for (Idx = 0; Idx < (CurIdx - StartIdx) + 1; Idx++) {
-      if (BufferCapacity < DescSize) {
-        if (Idx == 0) {
-          // If the buffer is too small for the first descriptor, update the required size and return error.
-          *Count        = LocalCount;
-          *PartDescSize = DescSize * LocalCount;
-          return EFI_BUFFER_TOO_SMALL;
-        }
+    CopyMem (Output, Page.Entries, ToCopy * DescSize);
+    Output    += ToCopy * DescSize;
+    Remaining -= ToCopy * DescSize;
+    *Count    += ToCopy;
+  } while (!Cursor.Complete && (Remaining >= DescSize));
 
-        break;
-      }
-
-      CopyMem (PartDesc, Regs, DescSize);
-      *Count   = *Count + 1;
-      Regs    += DescSize / sizeof (UINTN);
-      PartDesc = ((UINT8 *)PartDesc + DescSize);
-
-      BufferCapacity = BufferCapacity - DescSize;
-    }
-
-    StartIdx = CurIdx + 1;
-  } while (CurIdx < (LocalCount - 1) && (BufferCapacity >= DescSize));
-
-  *PartDescSize = *PartDescSize - BufferCapacity;
+  *PartDescSize = *PartDescSize - Remaining;
 
   return EFI_SUCCESS;
 }
